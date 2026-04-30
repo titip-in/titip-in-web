@@ -6,6 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\PrelovedListingController;
 use App\Http\Controllers\PrelovedRequestController;
+use App\Http\Controllers\JastipRequestController;
+use App\Http\Controllers\JastipListingController;
 
 Route::prefix('v1')->group(function () {
     
@@ -19,6 +21,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/preloved/listings/{id}', [PrelovedListingController::class, 'show']);
     Route::get('/preloved/requests', [PrelovedRequestController::class, 'index']);
     Route::get('/preloved/requests/{id}', [PrelovedRequestController::class, 'show']);
+
+    Route::get('/jastip/listings', [JastipListingController::class, 'index']);
+    Route::get('/jastip/listings/{id}', [JastipListingController::class, 'show']);
+    Route::get('/jastip/requests', [JastipRequestController::class, 'index']);
+    Route::get('/jastip/requests/{id}', [JastipRequestController::class, 'show']);
 
     Route::middleware('auth:sanctum')->group(function () {
         
@@ -43,5 +50,13 @@ Route::prefix('v1')->group(function () {
         Route::post('/preloved/requests', [PrelovedRequestController::class, 'store']);
         Route::match(['put', 'patch'], '/preloved/requests/{id}', [PrelovedRequestController::class, 'update']);
         Route::delete('/preloved/requests/{id}', [PrelovedRequestController::class, 'destroy']);
+
+        Route::post('/jastip/listings', [JastipListingController::class, 'store']);
+        Route::match(['put', 'patch'], '/jastip/listings/{id}', [JastipListingController::class, 'update']);
+        Route::delete('/jastip/listings/{id}', [JastipListingController::class, 'destroy']);
+
+        Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
+        Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
+        Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
     });
 });

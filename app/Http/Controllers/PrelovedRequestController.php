@@ -14,7 +14,7 @@ class PrelovedRequestController extends Controller
     public function index()
     {
         $items = PrelovedRequest::with([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name,icon'
         ])->latest()->get();
 
@@ -39,7 +39,7 @@ class PrelovedRequestController extends Controller
         $reqItem = PrelovedRequest::create($validated);
 
         $reqItem->load([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name'
         ]);
 
@@ -56,7 +56,7 @@ class PrelovedRequestController extends Controller
         }
 
         $reqItem = PrelovedRequest::with([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name,icon'
         ])->find($id);
 
@@ -87,17 +87,17 @@ class PrelovedRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'category_id' => 'nullable|exists:categories,id',
-            'title' => 'sometimes|string|max:255',
-            'description' => 'nullable|string',
-            'max_price' => 'nullable|integer|min:0',
-            'status' => 'sometimes|in:OPEN,FOUND,CLOSED'
+            'category_id' => 'sometimes|nullable|exists:categories,id',
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'max_price' => 'sometimes|nullable|integer|min:0',
+            'status' => 'sometimes|nullable|in:OPEN,FOUND,CLOSED'
         ]);
 
         $reqItem->update($validated);
 
         $reqItem->load([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name'
         ]);
 

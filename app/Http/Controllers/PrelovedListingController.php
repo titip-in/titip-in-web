@@ -14,7 +14,7 @@ class PrelovedListingController extends Controller
     public function index()
     {
         $items = PrelovedListing::with([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name,icon'
         ])->latest()->get();
         
@@ -27,7 +27,7 @@ class PrelovedListingController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'nullable|exists:categories,id',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|integer|min:0',
@@ -41,7 +41,7 @@ class PrelovedListingController extends Controller
         $listing = PrelovedListing::create($validated);
 
         $listing->load([
-            'user:id,name', 
+            'user:id,name,wa_number', 
             'category:id,name'
         ]);
 
@@ -58,7 +58,7 @@ class PrelovedListingController extends Controller
         }
 
         $listing = PrelovedListing::with([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name,icon'
         ])->find($id);
 
@@ -89,19 +89,19 @@ class PrelovedListingController extends Controller
         }
 
         $validated = $request->validate([
-            'category_id' => 'sometimes|exists:categories,id',
-            'title' => 'sometimes|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'sometimes|integer|min:0',
-            'condition' => 'sometimes|in:NEW,LIKE_NEW,GOOD,FAIR',
-            'image_url' => 'nullable|string',
-            'status' => 'sometimes|in:AVAILABLE,SOLD,RESERVED'
+            'category_id' => 'sometimes|nullable|exists:categories,id',
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'price' => 'sometimes|required|integer|min:0',
+            'condition' => 'sometimes|required|in:NEW,LIKE_NEW,GOOD,FAIR',
+            'image_url' => 'sometimes|nullable|string',
+            'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,RESERVED'
         ]);
 
         $listing->update($validated);
         
         $listing->load([
-            'user:id,name',
+            'user:id,name,wa_number',
             'category:id,name'
         ]);
 

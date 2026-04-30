@@ -36,13 +36,18 @@ class User extends Authenticatable
         return $this->hasMany(JastipListing::class);
     }
 
-    public function jastipRequest()
+    public function jastipRequests()
     {
         return $this->hasMany(JastipRequest::class);
     }
 
-    public function prelovedItems()
+    public function prelovedListings()
     {
-        return $this->hasMany(PrelovedItem::class);
+        return $this->hasMany(PrelovedListing::class);
+    }
+
+    public function prelovedRequests()
+    {
+        return $this->hasMany(PrelovedRequest::class);
     }
 }

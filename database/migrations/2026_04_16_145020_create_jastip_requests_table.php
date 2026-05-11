@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('jastip_requests', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
             $table->string('from_loc');
             $table->string('to_loc');
             $table->text('notes')->nullable();

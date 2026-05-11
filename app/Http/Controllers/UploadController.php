@@ -19,9 +19,9 @@ class UploadController extends Controller
 
             $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-            $path = $file->storeAs('uploads', $fileName, 'public');
+            $path = $file->storeAs('uploads', $fileName);
 
-            $url = url('/storage/' . $path);
+            $url = Storage::url($path);
 
             return $this->successResponse(['image_url' => $url], 'Image uploaded successfully', 201);
 

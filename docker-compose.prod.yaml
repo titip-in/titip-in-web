@@ -93,7 +93,7 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   minio:
-    image: minio/minio
+    minio: minio/minio:RELEASE.2023-04-20T17-56-55Z
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio
     restart: unless-stopped
     ports:
@@ -107,7 +107,7 @@ services:
       - minio_data:/data
 
   minio-setup:
-    image: minio/mc
+    image: minio/mc:latest
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio_setup
     depends_on:
       - minio

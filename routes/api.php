@@ -9,6 +9,7 @@ use App\Http\Controllers\PrelovedRequestController;
 use App\Http\Controllers\JastipRequestController;
 use App\Http\Controllers\JastipListingController;
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\UserController;
 
 Route::prefix('v1')->group(function () {
     
@@ -32,13 +33,8 @@ Route::prefix('v1')->group(function () {
         
         Route::post('/logout', [AuthController::class, 'logout']);
         
-        Route::get('/me', function (Request $request) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Profile retrieved',
-                'data' => $request->user()
-            ]);
-        });
+        Route::get('/me', [UserController::class, 'show']);
+        Route::match(['put', 'patch'], '/me', [UserController::class, 'update']);
 
         Route::post('/upload', [UploadController::class, 'uploadImage']);
 

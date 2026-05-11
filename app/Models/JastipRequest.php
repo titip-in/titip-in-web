@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 #[Fillable(['user_id', 'from_loc', 'to_loc', 'notes', 'status'])]
 class JastipRequest extends Model
 {
-    use HasUuids;
+    use HasUuids, HasFactory;
     
     public function user()
     {

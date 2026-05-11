@@ -10,14 +10,14 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl zip unzip \
-    libpq-dev libzip-dev \
+    libpq-dev libzip-dev libsqlite3-dev sqlite3 \
     libpng-dev libjpeg-dev libfreetype6-dev libwebp-dev \
     libonig-dev postgresql-client \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install -j$(nproc) \
-        pdo pdo_pgsql pgsql \
+        pdo pdo_pgsql pgsql pdo_sqlite \
         mbstring zip gd bcmath opcache \
     && pecl install redis \
     && docker-php-ext-enable redis opcache

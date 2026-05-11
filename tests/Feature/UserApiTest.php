@@ -1,0 +1,112 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class UserApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_authenticated_user_can_get_profile()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson('/api/v1/me');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data' => [
+                    'id',
+                    'name',
+                    'email',
+                    'wa_number',
+                    'avatar_url',
+                    'created_at',
+                    'updated_at'
+                ]
+            ])
+            ->assertJsonPath('data.id', $user->id)
+            ->assertJsonPath('data.email', $user->email);
+    }
+
+    public function test_unauthenticated_user_cannot_get_profile()
+    {
+        $response = $this->getJson('/api/v1/me');
+
+        $response->assertStatus(401);
+    }
+
+    public function test_authenticated_user_can_update_profile()
+    {
+        $user = User::factory()->create([
+            'name' => 'Old Name',
+            'wa_number' => '08111111111'
+        ]);
+
+        $response = $this->actingAs($user)->patchJson('/api/v1/me', [
+            'name' => 'New Name',
+            'wa_number' => '08222222222',
+            'avatar_url' => 'https://example.com/avatar.jpg'
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.name', 'New Name')
+            ->assertJsonPath('data.wa_number', '08222222222')
+            ->assertJsonPath('data.avatar_url', 'https://example.com/avatar.jpg');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'name' => 'New Name',
+            'wa_number' => '08222222222',
+            'avatar_url' => 'https://example.com/avatar.jpg'
+        ]);
+    }
+
+    public function test_user_can_update_profile_without_changing_wa_number()
+    {
+        $user = User::factory()->create([
+            'name' => 'Berd',
+            'wa_number' => '08999999999'
+        ]);
+
+        $response = $this->actingAs($user)->patchJson('/api/v1/me', [
+            'name' => 'Berd Updated',
+            'wa_number' => '08999999999',
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.name', 'Berd Updated');
+    }
+
+    public function test_user_cannot_use_wa_number_owned_by_another_user()
+    {
+        User::factory()->create([
+            'wa_number' => '08123456789'
+        ]);
+
+        $user2 = User::factory()->create([
+            'wa_number' => '08987654321'
+        ]);
+
+        $response = $this->actingAs($user2)->patchJson('/api/v1/me', [
+            'wa_number' => '08123456789',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['wa_number']);
+    }
+
+    public function test_unauthenticated_user_cannot_update_profile()
+    {
+        $response = $this->patchJson('/api/v1/me', [
+            'name' => 'Hacker'
+        ]);
+
+        $response->assertStatus(401);
+    }
+}

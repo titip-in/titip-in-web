@@ -195,38 +195,4 @@ class AuthApiTest extends TestCase
 
         $response->assertStatus(401);
     }
-
-    public function test_user_can_get_profile(): void
-    {
-        $user = User::create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
-        ]);
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        $response = $this->withHeader('Authorization', "Bearer $token")
-            ->getJson('/api/v1/me');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'data' => [
-                    'id',
-                    'name',
-                    'email',
-                    'wa_number'
-                ]
-            ]);
-    }
-
-    public function test_get_profile_fails_without_authentication(): void
-    {
-        $response = $this->getJson('/api/v1/me');
-
-        $response->assertStatus(401);
-    }
 }

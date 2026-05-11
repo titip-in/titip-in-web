@@ -8,6 +8,7 @@ use App\Http\Controllers\PrelovedListingController;
 use App\Http\Controllers\PrelovedRequestController;
 use App\Http\Controllers\JastipRequestController;
 use App\Http\Controllers\JastipListingController;
+use App\Http\Controllers\UploadController;
 
 Route::prefix('v1')->group(function () {
     
@@ -38,6 +39,8 @@ Route::prefix('v1')->group(function () {
                 'data' => $request->user()
             ]);
         });
+
+        Route::post('/upload', [UploadController::class, 'uploadImage']);
 
         Route::post('/categories', [CategoryController::class, 'store']);
         Route::match(['put', 'patch'], '/categories/{id}', [CategoryController::class, 'update']);

@@ -42,9 +42,9 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/upload', [UploadController::class, 'uploadImage']);
 
-        Route::post('/categories', [CategoryController::class, 'store']);
-        Route::match(['put', 'patch'], '/categories/{id}', [CategoryController::class, 'update']);
-        Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+        // Route::post('/categories', [CategoryController::class, 'store']);
+        // Route::match(['put', 'patch'], '/categories/{id}', [CategoryController::class, 'update']);
+        // Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
         Route::post('/preloved/listings', [PrelovedListingController::class, 'store']);
         Route::match(['put', 'patch'], '/preloved/listings/{id}', [PrelovedListingController::class, 'update']);

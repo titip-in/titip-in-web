@@ -31,7 +31,7 @@ class JastipListingController extends Controller
             'category_id' => 'nullable|exists:categories,id',
             'from_loc' => 'required|string|max:255',
             'to_loc' => 'required|string|max:255',
-            'deadline' => 'required|date',
+            'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
             'status' => 'nullable|in:ACTIVE,CLOSED',
             'image_url' => 'nullable|string',
             'lat' => 'nullable|numeric',
@@ -98,11 +98,13 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $maxDeadline = $listing->created_at->copy()->addHours(24)->toDateTimeString();
+
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
             'from_loc' => 'sometimes|required|string|max:255',
             'to_loc' => 'sometimes|required|string|max:255',
-            'deadline' => 'sometimes|required|date',
+            'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
             'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
             'image_url' => 'sometimes|nullable|string',
             'lat' => 'sometimes|nullable|numeric',

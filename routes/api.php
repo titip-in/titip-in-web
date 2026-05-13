@@ -2,14 +2,16 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\PrelovedListingController;
-use App\Http\Controllers\PrelovedRequestController;
-use App\Http\Controllers\JastipRequestController;
-use App\Http\Controllers\JastipListingController;
-use App\Http\Controllers\UploadController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\PrelovedListingController;
+use App\Http\Controllers\Api\PrelovedRequestController;
+use App\Http\Controllers\Api\JastipRequestController;
+use App\Http\Controllers\Api\JastipListingController;
+use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\UserActivityController;
 
 Route::prefix('v1')->group(function () {
     
@@ -29,6 +31,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/jastip/requests', [JastipRequestController::class, 'index']);
     Route::get('/jastip/requests/{id}', [JastipRequestController::class, 'show']);
 
+    Route::get('/search', [SearchController::class, 'search']);
+
     Route::middleware('auth:sanctum')->group(function () {
         
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -38,9 +42,9 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/upload', [UploadController::class, 'uploadImage']);
 
-        Route::post('/categories', [CategoryController::class, 'store']);
-        Route::match(['put', 'patch'], '/categories/{id}', [CategoryController::class, 'update']);
-        Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
+        // Route::post('/categories', [CategoryController::class, 'store']);
+        // Route::match(['put', 'patch'], '/categories/{id}', [CategoryController::class, 'update']);
+        // Route::delete('/categories/{id}', [CategoryController::class, 'destroy']);
 
         Route::post('/preloved/listings', [PrelovedListingController::class, 'store']);
         Route::match(['put', 'patch'], '/preloved/listings/{id}', [PrelovedListingController::class, 'update']);
@@ -57,5 +61,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
         Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
         Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
+
+        Route::get('/me/jastip/listings', [UserActivityController::class, 'myJastipListings']);
+        Route::get('/me/jastip/requests', [UserActivityController::class, 'myJastipRequests']);
+        Route::get('/me/preloved/listings', [UserActivityController::class, 'myPrelovedListings']);
+        Route::get('/me/preloved/requests', [UserActivityController::class, 'myPrelovedRequests']);
     });
 });

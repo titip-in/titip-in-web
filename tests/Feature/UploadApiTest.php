@@ -15,9 +15,10 @@ class UploadApiTest extends TestCase
     public function test_authenticated_user_can_upload_image()
     {
         $user = User::factory()->create();
-
-        Storage::fake('public');
-
+        $disk = config('filesystems.default');
+        
+        Storage::fake($disk);
+        
         $file = UploadedFile::fake()->image('macbook-bekas.jpg');
 
         $response = $this->actingAs($user)->postJson('/api/v1/upload', [
@@ -36,12 +37,14 @@ class UploadApiTest extends TestCase
         $imageUrl = $response->json('data.image_url');
         $savedFileName = basename($imageUrl);
 
-        $this->assertTrue(Storage::disk('public')->exists('uploads/' . $savedFileName));    
+        $this->assertTrue(Storage::disk($disk)->exists('uploads/' . $savedFileName));  
     }
 
     public function test_unauthenticated_user_cannot_upload_image()
     {
-        Storage::fake('public');
+        $disk = config('filesystems.default');
+        Storage::fake($disk);
+        
         $file = UploadedFile::fake()->image('hacker-image.jpg');
 
         $response = $this->postJson('/api/v1/upload', [
@@ -54,7 +57,8 @@ class UploadApiTest extends TestCase
     public function test_upload_fails_if_file_is_too_large()
     {
         $user = User::factory()->create();
-        Storage::fake('public');
+        $disk = config('filesystems.default');
+        Storage::fake($disk);
 
         $file = UploadedFile::fake()->image('giant-image.jpg')->size(6000);
 
@@ -69,7 +73,8 @@ class UploadApiTest extends TestCase
     public function test_upload_fails_if_file_is_not_an_image()
     {
         $user = User::factory()->create();
-        Storage::fake('public');
+        $disk = config('filesystems.default');
+        Storage::fake($disk);
 
         $file = UploadedFile::fake()->create('malware.pdf', 100, 'application/pdf');
 

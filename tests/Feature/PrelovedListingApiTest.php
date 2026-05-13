@@ -15,7 +15,7 @@ class PrelovedListingApiTest extends TestCase
     public function test_can_get_all_preloved_listings(): void
     {
         $user = User::factory()->create();
-        PrelovedListing::factory()->count(3)->create(['user_id' => $user->id]);
+        PrelovedListing::factory()->count(3)->create(['user_id' => $user->id, 'status' => 'AVAILABLE']);
 
         $response = $this->getJson('/api/v1/preloved/listings');
 
@@ -44,7 +44,7 @@ class PrelovedListingApiTest extends TestCase
     public function test_can_get_single_preloved_listing(): void
     {
         $user = User::factory()->create();
-        $listing = PrelovedListing::factory()->create(['user_id' => $user->id]);
+        $listing = PrelovedListing::factory()->create(['user_id' => $user->id, 'status' => 'AVAILABLE']);
 
         $response = $this->getJson("/api/v1/preloved/listings/{$listing->id}");
 
@@ -59,6 +59,7 @@ class PrelovedListingApiTest extends TestCase
                     'title',
                     'price',
                     'condition',
+                    'status',
                     'user',
                     'category'
                 ]
@@ -107,6 +108,7 @@ class PrelovedListingApiTest extends TestCase
                     'title',
                     'price',
                     'condition',
+                    'status',
                     'user',
                     'category'
                 ]
@@ -173,7 +175,7 @@ class PrelovedListingApiTest extends TestCase
                 'title' => 'Updated Title',
                 'price' => 7000000,
                 'condition' => 'LIKE_NEW',
-                'status' => 'SOLD',
+                'status' => 'CLOSED',
             ]);
 
         $response->assertStatus(200)
@@ -186,7 +188,8 @@ class PrelovedListingApiTest extends TestCase
         $this->assertDatabaseHas('preloved_listings', [
             'id' => $listing->id,
             'title' => 'Updated Title',
-            'price' => 7000000
+            'price' => 7000000,
+            'status' => 'CLOSED'
         ]);
     }
 
@@ -275,5 +278,58 @@ class PrelovedListingApiTest extends TestCase
             ->deleteJson('/api/v1/preloved/listings/not-a-uuid');
 
         $response->assertStatus(400);
+    }
+
+    public function test_user_cannot_create_more_than_5_active_listings(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create();
+
+        PrelovedListing::factory()->count(5)->create([
+            'user_id' => $user->id,
+            'status' => 'AVAILABLE'
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/preloved/listings', [
+                'category_id' => $category->id,
+                'title' => 'Used iPhone 12',
+                'price' => 8000000,
+                'condition' => 'GOOD',
+                'status' => 'AVAILABLE',
+            ]);
+
+        $response->assertStatus(400);
+    }
+
+    public function test_cannot_view_other_users_closed_listing(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        
+        $closedListing = PrelovedListing::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($otherUser)
+            ->getJson("/api/v1/preloved/listings/{$closedListing->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_can_view_own_closed_listing(): void
+    {
+        $owner = User::factory()->create();
+        
+        $closedListing = PrelovedListing::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->getJson("/api/v1/preloved/listings/{$closedListing->id}");
+
+        $response->assertStatus(200);
     }
 }

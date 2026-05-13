@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\JastipListing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class JastipListingController extends Controller
 {
@@ -16,7 +18,9 @@ class JastipListingController extends Controller
         $items = JastipListing::with([
             'user:id,name,wa_number',
             'category:id,name,icon'    
-        ])->latest()->get();
+        ])
+        ->where('status', 'ACTIVE')
+        ->latest()->get();
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
 
@@ -25,11 +29,16 @@ class JastipListingController extends Controller
      */
     public function store(Request $request)
     {
+        $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
+        if ($activeCount >= 5) {
+            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip listings.', 400);
+        }
+
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'from_loc' => 'required|string|max:255',
             'to_loc' => 'required|string|max:255',
-            'deadline' => 'required|date',
+            'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
             'status' => 'nullable|in:ACTIVE,CLOSED',
             'image_url' => 'nullable|string',
             'lat' => 'nullable|numeric',
@@ -37,6 +46,14 @@ class JastipListingController extends Controller
         ]);
 
         $validated['user_id'] = $request->user()->id;
+
+        try {
+            $textToEmbed = "Jastip dari " . $validated['from_loc'] . " ke " . $validated['to_loc'];
+            $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+            $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+        } catch (\Exception $e) {
+            Log::error('Failed to generate embedding for Jastip: ' . $e->getMessage());
+        }
 
         $listing = JastipListing::create($validated);
 
@@ -66,6 +83,10 @@ class JastipListingController extends Controller
             return $this->errorResponse('Jastip listing not found', 404);
         }
 
+        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Jastip listing is closed and cannot be viewed by the public.', 403);
+        }
+
         return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
     }
 
@@ -88,16 +109,41 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'ACTIVE';
+        if ($isReactivating) {
+            $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
+            if ($activeCount >= 5) {
+                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip listings.', 400);
+            }
+            $listing->created_at = now();
+        }
+
+        $baseTime = $isReactivating ? now() : $listing->created_at;
+        $maxDeadline = $baseTime->copy()->addHours(24)->toDateTimeString();
+
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
             'from_loc' => 'sometimes|required|string|max:255',
             'to_loc' => 'sometimes|required|string|max:255',
-            'deadline' => 'sometimes|required|date',
+            'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
             'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
             'image_url' => 'sometimes|nullable|string',
             'lat' => 'sometimes|nullable|numeric',
             'lng' => 'sometimes|nullable|numeric'
         ]);
+
+        if (isset($validated['from_loc']) || isset($validated['to_loc'])) {
+            try {
+                $newFromLoc = $validated['from_loc'] ?? $listing->from_loc;
+                $newToLoc = $validated['to_loc'] ?? $listing->to_loc;
+                
+                $textToEmbed = "Jastip dari " . $newFromLoc . " ke " . $newToLoc;
+                $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+                $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+            } catch (\Exception $e) {
+                Log::error('Failed to update embedding for Jastip: ' . $e->getMessage());
+            }
+        }
 
         $listing->update($validated);
 

@@ -15,7 +15,7 @@ class PrelovedRequestApiTest extends TestCase
     public function test_can_get_all_preloved_requests(): void
     {
         $user = User::factory()->create();
-        PrelovedRequest::factory()->count(3)->create(['user_id' => $user->id]);
+        PrelovedRequest::factory()->count(3)->create(['user_id' => $user->id, 'status' => 'OPEN']);
 
         $response = $this->getJson('/api/v1/preloved/requests');
 
@@ -42,7 +42,7 @@ class PrelovedRequestApiTest extends TestCase
     public function test_can_get_single_preloved_request(): void
     {
         $user = User::factory()->create();
-        $request = PrelovedRequest::factory()->create(['user_id' => $user->id]);
+        $request = PrelovedRequest::factory()->create(['user_id' => $user->id, 'status' => 'OPEN']);
 
         $response = $this->getJson("/api/v1/preloved/requests/{$request->id}");
 
@@ -162,7 +162,7 @@ class PrelovedRequestApiTest extends TestCase
             ->putJson("/api/v1/preloved/requests/{$request->id}", [
                 'title' => 'Updated Request Title',
                 'max_price' => 8000000,
-                'status' => 'FOUND',
+                'status' => 'CLOSED',
             ]);
 
         $response->assertStatus(200)
@@ -174,7 +174,8 @@ class PrelovedRequestApiTest extends TestCase
 
         $this->assertDatabaseHas('preloved_requests', [
             'id' => $request->id,
-            'title' => 'Updated Request Title'
+            'title' => 'Updated Request Title',
+            'status' => 'CLOSED'
         ]);
     }
 
@@ -263,5 +264,57 @@ class PrelovedRequestApiTest extends TestCase
             ->deleteJson('/api/v1/preloved/requests/not-a-uuid');
 
         $response->assertStatus(400);
+    }
+
+    public function test_user_cannot_create_more_than_5_active_requests(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create();
+
+        PrelovedRequest::factory()->count(5)->create([
+            'user_id' => $user->id,
+            'status' => 'OPEN'
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/preloved/requests', [
+                'category_id' => $category->id,
+                'title' => 'Looking for iPhone 12',
+                'max_price' => 9000000,
+                'status' => 'OPEN',
+            ]);
+
+        $response->assertStatus(400);
+    }
+
+    public function test_cannot_view_other_users_closed_request(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        
+        $closedRequest = PrelovedRequest::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($otherUser)
+            ->getJson("/api/v1/preloved/requests/{$closedRequest->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_can_view_own_closed_request(): void
+    {
+        $owner = User::factory()->create();
+        
+        $closedRequest = PrelovedRequest::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->getJson("/api/v1/preloved/requests/{$closedRequest->id}");
+
+        $response->assertStatus(200);
     }
 }

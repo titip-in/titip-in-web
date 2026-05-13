@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\PrelovedRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -16,7 +17,9 @@ class PrelovedRequestController extends Controller
         $items = PrelovedRequest::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
-        ])->latest()->get();
+        ])
+        ->where('status', 'OPEN') 
+        ->latest()->get();
 
         return $this->successResponse($items, 'Preloved request catalog retrieved successfully');
     }
@@ -26,6 +29,11 @@ class PrelovedRequestController extends Controller
      */
     public function store(Request $request)
     {
+        $activeCount = PrelovedRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
+        if ($activeCount >= 5) {
+            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Preloved requests.', 400);
+        }
+
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'title' => 'required|string|max:255',
@@ -64,6 +72,10 @@ class PrelovedRequestController extends Controller
             return $this->errorResponse('Preloved request not found', 404);
         }
 
+        if ($reqItem->status === 'CLOSED' && $reqItem->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Preloved request is closed and cannot be viewed by the public.', 403);
+        }
+
         return $this->successResponse($reqItem, 'Preloved request detail retrieved successfully');
     }
 
@@ -84,6 +96,15 @@ class PrelovedRequestController extends Controller
 
         if ($reqItem->user_id !== $request->user()->id) {
             return $this->errorResponse('Not authorized to modify this item', 403);
+        }
+
+        $isReactivating = $reqItem->status === 'CLOSED' && $request->input('status') === 'OPEN';
+        if ($isReactivating) {
+            $activeCount = PrelovedRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
+            if ($activeCount >= 5) {
+                return $this->errorResponse('Failed to reactivate. You already have 5 active Preloved requests.', 400);
+            }
+            $reqItem->created_at = now();
         }
 
         $validated = $request->validate([

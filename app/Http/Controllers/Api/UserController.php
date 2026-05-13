@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -15,6 +16,18 @@ class UserController extends Controller
 
     public function update(Request $request)
     {
+        if ($request->has('wa_number')) {
+            $wa = preg_replace('/[^0-9]/', '', $request->wa_number);
+            
+            if (str_starts_with($wa, '0')) {
+                $wa = '62' . substr($wa, 1);
+            } elseif (str_starts_with($wa, '8')) {
+                $wa = '62' . $wa;
+            }
+            
+            $request->merge(['wa_number' => $wa]);
+        }
+
         $user = $request->user();
 
         $validated = $request->validate([

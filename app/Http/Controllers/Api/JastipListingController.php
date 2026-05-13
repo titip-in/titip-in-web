@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\JastipListing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class JastipListingController extends Controller
 {
@@ -37,6 +39,14 @@ class JastipListingController extends Controller
         ]);
 
         $validated['user_id'] = $request->user()->id;
+
+        try {
+            $textToEmbed = "Jastip dari " . $validated['from_loc'] . " ke " . $validated['to_loc'];
+            $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+            $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+        } catch (\Exception $e) {
+            Log::error('Failed to generate embedding for Jastip: ' . $e->getMessage());
+        }
 
         $listing = JastipListing::create($validated);
 
@@ -98,6 +108,19 @@ class JastipListingController extends Controller
             'lat' => 'sometimes|nullable|numeric',
             'lng' => 'sometimes|nullable|numeric'
         ]);
+
+        if (isset($validated['from_loc']) || isset($validated['to_loc'])) {
+            try {
+                $newFromLoc = $validated['from_loc'] ?? $listing->from_loc;
+                $newToLoc = $validated['to_loc'] ?? $listing->to_loc;
+                
+                $textToEmbed = "Jastip dari " . $newFromLoc . " ke " . $newToLoc;
+                $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+                $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+            } catch (\Exception $e) {
+                Log::error('Failed to update embedding for Jastip: ' . $e->getMessage());
+            }
+        }
 
         $listing->update($validated);
 

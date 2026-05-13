@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\PrelovedListing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class PrelovedListingController extends Controller
 {
@@ -37,6 +39,14 @@ class PrelovedListingController extends Controller
         ]);
 
         $validated['user_id'] = $request->user()->id;
+
+        try {
+            $textToEmbed = $validated['title'] . ' ' . ($validated['description'] ?? '');
+            $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+            $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+        } catch (\Exception $e) {
+            Log::error('Failed to generate embedding for Preloved: ' . $e->getMessage());
+        }
 
         $listing = PrelovedListing::create($validated);
 
@@ -97,6 +107,19 @@ class PrelovedListingController extends Controller
             'image_url' => 'sometimes|nullable|string',
             'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,RESERVED'
         ]);
+
+        if (isset($validated['title']) || isset($validated['description'])) {
+            try {
+                $newTitle = $validated['title'] ?? $listing->title;
+                $newDesc = $validated['description'] ?? $listing->description;
+                
+                $textToEmbed = $newTitle . ' ' . $newDesc;
+                $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
+                $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
+            } catch (\Exception $e) {
+                Log::error('Failed to update embedding for Preloved: ' . $e->getMessage());
+            }
+        }
 
         $listing->update($validated);
         

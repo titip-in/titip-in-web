@@ -15,7 +15,7 @@ class JastipRequestApiTest extends TestCase
     public function test_can_get_all_jastip_requests(): void
     {
         $user = User::factory()->create();
-        JastipRequest::factory()->count(3)->create(['user_id' => $user->id]);
+        JastipRequest::factory()->count(3)->create(['user_id' => $user->id, 'status' => 'OPEN']);
 
         $response = $this->getJson('/api/v1/jastip/requests');
 
@@ -42,7 +42,7 @@ class JastipRequestApiTest extends TestCase
     public function test_can_get_single_jastip_request(): void
     {
         $user = User::factory()->create();
-        $request = JastipRequest::factory()->create(['user_id' => $user->id]);
+        $request = JastipRequest::factory()->create(['user_id' => $user->id, 'status' => 'OPEN']);
 
         $response = $this->getJson("/api/v1/jastip/requests/{$request->id}");
 
@@ -162,7 +162,7 @@ class JastipRequestApiTest extends TestCase
             ->putJson("/api/v1/jastip/requests/{$request->id}", [
                 'from_loc' => 'Surabaya',
                 'to_loc' => 'Yogyakarta',
-                'status' => 'TAKEN',
+                'status' => 'CLOSED',
             ]);
 
         $response->assertStatus(200)
@@ -174,7 +174,8 @@ class JastipRequestApiTest extends TestCase
 
         $this->assertDatabaseHas('jastip_requests', [
             'id' => $request->id,
-            'from_loc' => 'Surabaya'
+            'from_loc' => 'Surabaya',
+            'status' => 'CLOSED'
         ]);
     }
 
@@ -263,5 +264,57 @@ class JastipRequestApiTest extends TestCase
             ->deleteJson('/api/v1/jastip/requests/not-a-uuid');
 
         $response->assertStatus(400);
+    }
+
+    public function test_user_cannot_create_more_than_5_active_requests(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create();
+
+        JastipRequest::factory()->count(5)->create([
+            'user_id' => $user->id,
+            'status' => 'OPEN'
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/jastip/requests', [
+                'category_id' => $category->id,
+                'from_loc' => 'Jakarta',
+                'to_loc' => 'Bandung',
+                'status' => 'OPEN',
+            ]);
+
+        $response->assertStatus(400);
+    }
+
+    public function test_cannot_view_other_users_closed_request(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        
+        $closedRequest = JastipRequest::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($otherUser)
+            ->getJson("/api/v1/jastip/requests/{$closedRequest->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_can_view_own_closed_request(): void
+    {
+        $owner = User::factory()->create();
+        
+        $closedRequest = JastipRequest::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->getJson("/api/v1/jastip/requests/{$closedRequest->id}");
+
+        $response->assertStatus(200);
     }
 }

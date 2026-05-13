@@ -15,7 +15,7 @@ class JastipListingApiTest extends TestCase
     public function test_can_get_all_jastip_listings(): void
     {
         $user = User::factory()->create();
-        JastipListing::factory()->count(3)->create(['user_id' => $user->id]);
+        JastipListing::factory()->count(3)->create(['user_id' => $user->id, 'status' => 'ACTIVE']);
 
         $response = $this->getJson('/api/v1/jastip/listings');
 
@@ -45,7 +45,7 @@ class JastipListingApiTest extends TestCase
     public function test_can_get_single_jastip_listing(): void
     {
         $user = User::factory()->create();
-        $listing = JastipListing::factory()->create(['user_id' => $user->id]);
+        $listing = JastipListing::factory()->create(['user_id' => $user->id, 'status' => 'ACTIVE']);
 
         $response = $this->getJson("/api/v1/jastip/listings/{$listing->id}");
 
@@ -200,7 +200,8 @@ class JastipListingApiTest extends TestCase
 
         $this->assertDatabaseHas('jastip_listings', [
             'id' => $listing->id,
-            'from_loc' => 'Surabaya'
+            'from_loc' => 'Surabaya',
+            'status' => 'CLOSED'
         ]);
     }
 
@@ -289,5 +290,58 @@ class JastipListingApiTest extends TestCase
             ->deleteJson('/api/v1/jastip/listings/not-a-uuid');
 
         $response->assertStatus(400);
+    }
+
+    public function test_user_cannot_create_more_than_5_active_listings(): void
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create();
+
+        JastipListing::factory()->count(5)->create([
+            'user_id' => $user->id,
+            'status' => 'ACTIVE'
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/jastip/listings', [
+                'category_id' => $category->id,
+                'from_loc' => 'Jakarta',
+                'to_loc' => 'Bandung',
+                'deadline' => now()->addHours(12)->toDateTimeString(),
+                'status' => 'ACTIVE',
+            ]);
+
+        $response->assertStatus(400);
+    }
+
+    public function test_cannot_view_other_users_closed_listing(): void
+    {
+        $owner = User::factory()->create();
+        $otherUser = User::factory()->create();
+        
+        $closedListing = JastipListing::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($otherUser)
+            ->getJson("/api/v1/jastip/listings/{$closedListing->id}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_owner_can_view_own_closed_listing(): void
+    {
+        $owner = User::factory()->create();
+        
+        $closedListing = JastipListing::factory()->create([
+            'user_id' => $owner->id,
+            'status' => 'CLOSED'
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->getJson("/api/v1/jastip/listings/{$closedListing->id}");
+
+        $response->assertStatus(200);
     }
 }

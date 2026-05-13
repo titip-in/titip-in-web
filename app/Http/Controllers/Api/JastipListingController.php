@@ -18,7 +18,9 @@ class JastipListingController extends Controller
         $items = JastipListing::with([
             'user:id,name,wa_number',
             'category:id,name,icon'    
-        ])->latest()->get();
+        ])
+        ->where('status', 'ACTIVE')
+        ->latest()->get();
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
 
@@ -27,6 +29,11 @@ class JastipListingController extends Controller
      */
     public function store(Request $request)
     {
+        $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
+        if ($activeCount >= 5) {
+            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip listings.', 400);
+        }
+
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'from_loc' => 'required|string|max:255',
@@ -76,6 +83,10 @@ class JastipListingController extends Controller
             return $this->errorResponse('Jastip listing not found', 404);
         }
 
+        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Jastip listing is closed and cannot be viewed by the public.', 403);
+        }
+
         return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
     }
 
@@ -98,7 +109,17 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
-        $maxDeadline = $listing->created_at->copy()->addHours(24)->toDateTimeString();
+        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'ACTIVE';
+        if ($isReactivating) {
+            $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
+            if ($activeCount >= 5) {
+                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip listings.', 400);
+            }
+            $listing->created_at = now();
+        }
+
+        $baseTime = $isReactivating ? now() : $listing->created_at;
+        $maxDeadline = $baseTime->copy()->addHours(24)->toDateTimeString();
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',

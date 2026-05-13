@@ -30,6 +30,7 @@ class SearchController extends Controller
                         'user:id,name,wa_number',
                         'category:id,name,icon'
                     ])
+                    ->where('status', 'ACTIVE')
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
                     ->cursorPaginate(10); 
             } else {
@@ -37,6 +38,7 @@ class SearchController extends Controller
                         'user:id,name,wa_number',
                         'category:id,name,icon'
                     ])
+                    ->where('status', 'AVAILABLE')
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
                     ->cursorPaginate(10);
             }

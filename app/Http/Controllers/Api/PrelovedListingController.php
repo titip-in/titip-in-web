@@ -18,7 +18,9 @@ class PrelovedListingController extends Controller
         $items = PrelovedListing::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
-        ])->latest()->get();
+        ])
+        ->where('status', 'AVAILABLE') 
+        ->latest()->get();
         
         return $this->successResponse($items, 'Preloved listing catalog retrieved successfully');
     }
@@ -28,6 +30,11 @@ class PrelovedListingController extends Controller
      */
     public function store(Request $request)
     {
+        $activeCount = PrelovedListing::where('user_id', $request->user()->id)->where('status', 'AVAILABLE')->count();
+        if ($activeCount >= 5) {
+            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Preloved listings.', 400);
+        }
+
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'title' => 'required|string|max:255',
@@ -76,6 +83,10 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Preloved listing not found', 404);
         }
 
+        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Preloved listing is closed and cannot be viewed by the public.', 403);
+        }
+
         return $this->successResponse($listing, 'Preloved listing detail retrieved successfully');
     }
 
@@ -96,6 +107,15 @@ class PrelovedListingController extends Controller
 
         if ($listing->user_id !== $request->user()->id) {
             return $this->errorResponse('Not authorized to modify this item', 403);
+        }
+
+        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'AVAILABLE';
+        if ($isReactivating) {
+            $activeCount = PrelovedListing::where('user_id', $request->user()->id)->where('status', 'AVAILABLE')->count();
+            if ($activeCount >= 5) {
+                return $this->errorResponse('Failed to reactivate. You already have 5 active Preloved listings.', 400);
+            }
+            $listing->created_at = now();
         }
 
         $validated = $request->validate([

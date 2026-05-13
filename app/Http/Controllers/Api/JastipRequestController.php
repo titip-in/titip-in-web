@@ -17,7 +17,9 @@ class JastipRequestController extends Controller
         $items = JastipRequest::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
-        ])->latest()->get();
+        ])
+        ->where('status', '!=', 'CLOSED') 
+        ->latest()->get();
 
         return $this->successResponse($items, 'Jastip request catalog retrieved successfully');
     }
@@ -27,6 +29,11 @@ class JastipRequestController extends Controller
      */
     public function store(Request $request)
     {
+        $activeCount = JastipRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
+        if ($activeCount >= 5) {
+            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip requests.', 400);
+        }
+
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'from_loc' => 'required|string|max:255',
@@ -65,6 +72,10 @@ class JastipRequestController extends Controller
             return $this->errorResponse('Jastip request not found', 404);
         }
 
+        if ($reqItem->status === 'CLOSED' && $reqItem->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Jastip request is closed and cannot be viewed by the public.', 403);
+        }
+
         return $this->successResponse($reqItem, 'Jastip request detail retrieved successfully');
     }
 
@@ -85,6 +96,15 @@ class JastipRequestController extends Controller
 
         if ($reqItem->user_id !== $request->user()->id) {
             return $this->errorResponse('Not authorized to modify this item', 403);
+        }
+
+        $isReactivating = $reqItem->status === 'CLOSED' && $request->input('status') === 'OPEN';
+        if ($isReactivating) {
+            $activeCount = JastipRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
+            if ($activeCount >= 5) {
+                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip requests.', 400);
+            }
+            $reqItem->created_at = now();
         }
 
         $validated = $request->validate([

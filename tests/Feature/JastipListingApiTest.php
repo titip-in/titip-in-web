@@ -91,7 +91,7 @@ class JastipListingApiTest extends TestCase
                 'category_id' => $category->id,
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
-                'deadline' => '2026-06-01',
+                'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'ACTIVE',
                 'image_url' => 'https://example.com/image.jpg',
                 'lat' => -6.1753,
@@ -127,7 +127,7 @@ class JastipListingApiTest extends TestCase
             'category_id' => $category->id,
             'from_loc' => 'Jakarta',
             'to_loc' => 'Bandung',
-            'deadline' => '2026-06-01',
+            'deadline' => now()->addHours(12)->toDateTimeString(),
         ]);
 
         $response->assertStatus(401);
@@ -143,7 +143,7 @@ class JastipListingApiTest extends TestCase
                 'category_id' => $category->id,
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
-                'deadline' => '2026-06-01',
+                'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'INVALID',
             ]);
 

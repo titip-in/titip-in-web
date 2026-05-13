@@ -2,14 +2,15 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\PrelovedListingController;
-use App\Http\Controllers\PrelovedRequestController;
-use App\Http\Controllers\JastipRequestController;
-use App\Http\Controllers\JastipListingController;
-use App\Http\Controllers\UploadController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\PrelovedListingController;
+use App\Http\Controllers\Api\PrelovedRequestController;
+use App\Http\Controllers\Api\JastipRequestController;
+use App\Http\Controllers\Api\JastipListingController;
+use App\Http\Controllers\Api\UploadController;
+use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\SearchController;
 
 Route::prefix('v1')->group(function () {
     
@@ -28,6 +29,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/jastip/listings/{id}', [JastipListingController::class, 'show']);
     Route::get('/jastip/requests', [JastipRequestController::class, 'index']);
     Route::get('/jastip/requests/{id}', [JastipRequestController::class, 'show']);
+
+    Route::get('/search', [SearchController::class, 'search']);
 
     Route::middleware('auth:sanctum')->group(function () {
         

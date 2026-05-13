@@ -1,24 +1,23 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
-use App\Models\PrelovedListing;
+use App\Models\JastipListing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class PrelovedListingController extends Controller
+class JastipListingController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $items = PrelovedListing::with([
+        $items = JastipListing::with([
             'user:id,name,wa_number',
-            'category:id,name,icon'
+            'category:id,name,icon'    
         ])->latest()->get();
-        
-        return $this->successResponse($items, 'Preloved listing catalog retrieved successfully');
+        return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
 
     /**
@@ -28,24 +27,25 @@ class PrelovedListingController extends Controller
     {
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'price' => 'required|integer|min:0',
-            'condition' => 'required|in:NEW,LIKE_NEW,GOOD,FAIR',
+            'from_loc' => 'required|string|max:255',
+            'to_loc' => 'required|string|max:255',
+            'deadline' => 'required|date',
+            'status' => 'nullable|in:ACTIVE,CLOSED',
             'image_url' => 'nullable|string',
-            'status' => 'nullable|in:AVAILABLE,SOLD,RESERVED'
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric'
         ]);
 
         $validated['user_id'] = $request->user()->id;
 
-        $listing = PrelovedListing::create($validated);
+        $listing = JastipListing::create($validated);
 
         $listing->load([
-            'user:id,name,wa_number', 
-            'category:id,name'
+            'user:id,name,wa_number',
+            'category:id,name'    
         ]);
 
-        return $this->successResponse($listing, 'Preloved listing posted successfully', 201);
+        return $this->successResponse($listing, 'Jastip listing posted successfully', 201);
     }
 
     /**
@@ -57,16 +57,16 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $listing = PrelovedListing::with([
+        $listing = JastipListing::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
         ])->find($id);
 
         if (!$listing) {
-            return $this->errorResponse('Preloved listing not found', 404);
+            return $this->errorResponse('Jastip listing not found', 404);
         }
 
-        return $this->successResponse($listing, 'Preloved listing detail retrieved successfully');
+        return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
     }
 
     /**
@@ -78,10 +78,10 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $listing = PrelovedListing::find($id);
+        $listing = JastipListing::find($id);
         
         if (!$listing) {
-            return $this->errorResponse('Preloved listing not found', 404);
+            return $this->errorResponse('Jastip listing not found', 404);
         }
 
         if ($listing->user_id !== $request->user()->id) {
@@ -90,22 +90,23 @@ class PrelovedListingController extends Controller
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'sometimes|nullable|string',
-            'price' => 'sometimes|required|integer|min:0',
-            'condition' => 'sometimes|required|in:NEW,LIKE_NEW,GOOD,FAIR',
+            'from_loc' => 'sometimes|required|string|max:255',
+            'to_loc' => 'sometimes|required|string|max:255',
+            'deadline' => 'sometimes|required|date',
+            'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
             'image_url' => 'sometimes|nullable|string',
-            'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,RESERVED'
+            'lat' => 'sometimes|nullable|numeric',
+            'lng' => 'sometimes|nullable|numeric'
         ]);
 
         $listing->update($validated);
-        
+
         $listing->load([
             'user:id,name,wa_number',
             'category:id,name'
         ]);
 
-        return $this->successResponse($listing, 'Preloved listing updated successfully');
+        return $this->successResponse($listing, 'Jastip listing updated successfully');
     }
 
     /**
@@ -117,10 +118,10 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $listing = PrelovedListing::find($id);
+        $listing = JastipListing::find($id);
         
         if (!$listing) {
-            return $this->errorResponse('Preloved listing not found', 404);
+            return $this->errorResponse('Jastip listing not found', 404);
         }
 
         if ($listing->user_id !== $request->user()->id) {
@@ -129,6 +130,6 @@ class PrelovedListingController extends Controller
 
         $listing->delete();
 
-        return $this->successResponse(null, 'Preloved listing deleted successfully');
+        return $this->successResponse(null, 'Jastip listing deleted successfully');
     }
 }

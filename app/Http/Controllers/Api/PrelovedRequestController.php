@@ -1,24 +1,24 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
-use App\Models\JastipRequest;
+use App\Models\PrelovedRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class JastipRequestController extends Controller
+class PrelovedRequestController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $items = JastipRequest::with([
+        $items = PrelovedRequest::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
         ])->latest()->get();
 
-        return $this->successResponse($items, 'Jastip request catalog retrieved successfully');
+        return $this->successResponse($items, 'Preloved request catalog retrieved successfully');
     }
 
     /**
@@ -28,22 +28,22 @@ class JastipRequestController extends Controller
     {
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
-            'from_loc' => 'required|string|max:255',
-            'to_loc' => 'required|string|max:255',
-            'notes' => 'nullable|string',
-            'status' => 'nullable|in:OPEN,TAKEN,CLOSED'
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'max_price' => 'nullable|integer|min:0',
+            'status' => 'nullable|in:OPEN,FOUND,CLOSED'
         ]);
 
         $validated['user_id'] = $request->user()->id;
 
-        $reqItem = JastipRequest::create($validated);
+        $reqItem = PrelovedRequest::create($validated);
 
         $reqItem->load([
             'user:id,name,wa_number',
             'category:id,name'
         ]);
 
-        return $this->successResponse($reqItem, 'Jastip request posted successfully', 201);
+        return $this->successResponse($reqItem, 'Preloved request posted successfully', 201);
     }
 
     /**
@@ -55,16 +55,16 @@ class JastipRequestController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $reqItem = JastipRequest::with([
+        $reqItem = PrelovedRequest::with([
             'user:id,name,wa_number',
             'category:id,name,icon'
         ])->find($id);
 
         if (!$reqItem) {
-            return $this->errorResponse('Jastip request not found', 404);
+            return $this->errorResponse('Preloved request not found', 404);
         }
 
-        return $this->successResponse($reqItem, 'Jastip request detail retrieved successfully');
+        return $this->successResponse($reqItem, 'Preloved request detail retrieved successfully');
     }
 
     /**
@@ -76,10 +76,10 @@ class JastipRequestController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $reqItem = JastipRequest::find($id);
+        $reqItem = PrelovedRequest::find($id);
         
         if (!$reqItem) {
-            return $this->errorResponse('Jastip request not found', 404);
+            return $this->errorResponse('Preloved request not found', 404);
         }
 
         if ($reqItem->user_id !== $request->user()->id) {
@@ -88,20 +88,20 @@ class JastipRequestController extends Controller
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
-            'from_loc' => 'sometimes|required|string|max:255',
-            'to_loc' => 'sometimes|required|string|max:255',
-            'notes' => 'sometimes|nullable|string',
-            'status' => 'sometimes|nullable|in:OPEN,TAKEN,CLOSED'
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
+            'max_price' => 'sometimes|nullable|integer|min:0',
+            'status' => 'sometimes|nullable|in:OPEN,FOUND,CLOSED'
         ]);
 
         $reqItem->update($validated);
-        
+
         $reqItem->load([
             'user:id,name,wa_number',
             'category:id,name'
         ]);
 
-        return $this->successResponse($reqItem, 'Jastip request updated successfully');
+        return $this->successResponse($reqItem, 'Preloved request updated successfully');
     }
 
     /**
@@ -113,10 +113,10 @@ class JastipRequestController extends Controller
             return $this->errorResponse('ID format not valid', 400);
         }
 
-        $reqItem = JastipRequest::find($id);
+        $reqItem = PrelovedRequest::find($id);
         
         if (!$reqItem) {
-            return $this->errorResponse('Jastip request not found', 404);
+            return $this->errorResponse('Preloved request not found', 404);
         }
 
         if ($reqItem->user_id !== $request->user()->id) {
@@ -125,6 +125,6 @@ class JastipRequestController extends Controller
 
         $reqItem->delete();
 
-        return $this->successResponse(null, 'Jastip request deleted successfully');
+        return $this->successResponse(null, 'Preloved request deleted successfully');
     }
 }

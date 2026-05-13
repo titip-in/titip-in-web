@@ -16,7 +16,7 @@ class AuthApiTest extends TestCase
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'password123',
-            'wa_number' => '6281234567890',
+            'wa_number' => '081234567890', 
         ]);
 
         $response->assertStatus(201)
@@ -37,7 +37,8 @@ class AuthApiTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'john@example.com',
-            'name' => 'John Doe'
+            'name' => 'John Doe',
+            'wa_number' => '6281234567890' 
         ]);
     }
 
@@ -54,7 +55,7 @@ class AuthApiTest extends TestCase
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'password123',
-            'wa_number' => '6281234567891',
+            'wa_number' => '081234567891',
         ]);
 
         $response->assertStatus(422);
@@ -73,7 +74,7 @@ class AuthApiTest extends TestCase
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'password123',
-            'wa_number' => '6281234567890',
+            'wa_number' => '081234567890',
         ]);
 
         $response->assertStatus(422);
@@ -85,7 +86,7 @@ class AuthApiTest extends TestCase
             'name' => 'John Doe',
             // missing email
             'password' => 'password123',
-            'wa_number' => '6281234567890',
+            'wa_number' => '081234567890',
         ]);
 
         $response->assertStatus(422);
@@ -97,7 +98,7 @@ class AuthApiTest extends TestCase
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'password' => 'pass123',
-            'wa_number' => '6281234567890',
+            'wa_number' => '081234567890',
         ]);
 
         $response->assertStatus(422);

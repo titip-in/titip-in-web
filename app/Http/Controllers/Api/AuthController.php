@@ -8,11 +8,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
-
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        if ($request->has('wa_number')) {
+            $wa = preg_replace('/[^0-9]/', '', $request->wa_number);
+            
+            if (str_starts_with($wa, '0')) {
+                $wa = '62' . substr($wa, 1);
+            } 
+            elseif (str_starts_with($wa, '8')) {
+                $wa = '62' . $wa;
+            }
+            
+            $request->merge(['wa_number' => $wa]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',

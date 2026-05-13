@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\JastipListingController;
 use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\UserActivityController;
 
 Route::prefix('v1')->group(function () {
     
@@ -60,5 +61,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
         Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
         Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
+
+        Route::get('/me/jastip/listings', [UserActivityController::class, 'myJastipListings']);
+        Route::get('/me/jastip/requests', [UserActivityController::class, 'myJastipRequests']);
+        Route::get('/me/preloved/listings', [UserActivityController::class, 'myPrelovedListings']);
+        Route::get('/me/preloved/requests', [UserActivityController::class, 'myPrelovedRequests']);
     });
 });

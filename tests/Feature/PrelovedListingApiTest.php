@@ -59,6 +59,7 @@ class PrelovedListingApiTest extends TestCase
                     'title',
                     'price',
                     'condition',
+                    'status',
                     'user',
                     'category'
                 ]
@@ -107,6 +108,7 @@ class PrelovedListingApiTest extends TestCase
                     'title',
                     'price',
                     'condition',
+                    'status',
                     'user',
                     'category'
                 ]
@@ -173,7 +175,7 @@ class PrelovedListingApiTest extends TestCase
                 'title' => 'Updated Title',
                 'price' => 7000000,
                 'condition' => 'LIKE_NEW',
-                'status' => 'SOLD',
+                'status' => 'CLOSED',
             ]);
 
         $response->assertStatus(200)
@@ -186,7 +188,8 @@ class PrelovedListingApiTest extends TestCase
         $this->assertDatabaseHas('preloved_listings', [
             'id' => $listing->id,
             'title' => 'Updated Title',
-            'price' => 7000000
+            'price' => 7000000,
+            'status' => 'CLOSED'
         ]);
     }
 

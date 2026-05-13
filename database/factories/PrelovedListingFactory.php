@@ -25,7 +25,7 @@ class PrelovedListingFactory extends Factory
             'price' => $this->faker->numberBetween(100000, 50000000),
             'condition' => $this->faker->randomElement(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']),
             'image_url' => $this->faker->imageUrl(),
-            'status' => $this->faker->randomElement(['AVAILABLE', 'SOLD', 'RESERVED']),
+            'status' => $this->faker->randomElement(['AVAILABLE', 'SOLD', 'CLOSED']),
         ];
     }
 }

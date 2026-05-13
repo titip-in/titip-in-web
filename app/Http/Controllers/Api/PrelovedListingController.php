@@ -35,7 +35,7 @@ class PrelovedListingController extends Controller
             'price' => 'required|integer|min:0',
             'condition' => 'required|in:NEW,LIKE_NEW,GOOD,FAIR',
             'image_url' => 'nullable|string',
-            'status' => 'nullable|in:AVAILABLE,SOLD,RESERVED'
+            'status' => 'nullable|in:AVAILABLE,SOLD,CLOSED'
         ]);
 
         $validated['user_id'] = $request->user()->id;
@@ -105,7 +105,7 @@ class PrelovedListingController extends Controller
             'price' => 'sometimes|required|integer|min:0',
             'condition' => 'sometimes|required|in:NEW,LIKE_NEW,GOOD,FAIR',
             'image_url' => 'sometimes|nullable|string',
-            'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,RESERVED'
+            'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,CLOSED'
         ]);
 
         if (isset($validated['title']) || isset($validated['description'])) {

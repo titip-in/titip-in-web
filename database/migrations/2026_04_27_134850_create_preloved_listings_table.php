@@ -19,7 +19,6 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->unsignedBigInteger('price');
             $table->enum('condition', ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']);
-            $table->string('image_url')->nullable();
             $table->enum('status', ['AVAILABLE', 'SOLD', 'CLOSED'])->default('AVAILABLE');
             $table->timestamps();
         });

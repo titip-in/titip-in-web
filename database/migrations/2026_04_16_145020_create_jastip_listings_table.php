@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('to_loc');
             $table->dateTime('deadline');
             $table->enum('status', ['ACTIVE', 'CLOSED'])->default('ACTIVE');
-            $table->string('image_url')->nullable();
             $table->decimal('lat', 10, 8)->nullable();
             $table->decimal('lng', 11, 8)->nullable();
             $table->timestamps();

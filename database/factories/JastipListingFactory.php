@@ -24,7 +24,6 @@ class JastipListingFactory extends Factory
             'to_loc' => $this->faker->city(),
             'deadline' => $this->faker->dateTimeBetween('+1 day', '+30 days'),
             'status' => $this->faker->randomElement(['ACTIVE', 'CLOSED']),
-            'image_url' => $this->faker->imageUrl(),
             'lat' => $this->faker->latitude(),
             'lng' => $this->faker->longitude(),
         ];

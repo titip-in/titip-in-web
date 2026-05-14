@@ -32,11 +32,11 @@ class JastipListingApiTest extends TestCase
                         'to_loc',
                         'deadline',
                         'status',
-                        'image_url',
                         'lat',
                         'lng',
                         'user',
-                        'category'
+                        'category',
+                        'images'
                     ]
                 ]
             ]);
@@ -61,7 +61,8 @@ class JastipListingApiTest extends TestCase
                     'to_loc',
                     'deadline',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ])
             ->assertJsonPath('data.id', $listing->id);
@@ -93,7 +94,7 @@ class JastipListingApiTest extends TestCase
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'ACTIVE',
-                'image_url' => 'https://example.com/image.jpg',
+                'images' => ['https://example.com/image.jpg'],
                 'lat' => -6.1753,
                 'lng' => 106.8249,
             ]);
@@ -109,6 +110,7 @@ class JastipListingApiTest extends TestCase
                     'to_loc',
                     'deadline',
                     'user',
+                    'images'
                 ]
             ]);
 
@@ -145,6 +147,7 @@ class JastipListingApiTest extends TestCase
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'INVALID',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -161,6 +164,7 @@ class JastipListingApiTest extends TestCase
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'deadline' => 'not-a-date',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -173,7 +177,7 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'from_loc' => 'Jakarta',
-                // missing to_loc and deadline
+                // missing to_loc, deadline, images
             ]);
 
         $response->assertStatus(422);
@@ -309,6 +313,7 @@ class JastipListingApiTest extends TestCase
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'ACTIVE',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(400);

@@ -32,10 +32,10 @@ class PrelovedListingApiTest extends TestCase
                         'description',
                         'price',
                         'condition',
-                        'image_url',
                         'status',
                         'user',
-                        'category'
+                        'category',
+                        'images'
                     ]
                 ]
             ]);
@@ -61,7 +61,8 @@ class PrelovedListingApiTest extends TestCase
                     'condition',
                     'status',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ])
             ->assertJsonPath('data.id', $listing->id);
@@ -93,7 +94,7 @@ class PrelovedListingApiTest extends TestCase
                 'description' => 'Good condition',
                 'price' => 8000000,
                 'condition' => 'GOOD',
-                'image_url' => 'https://example.com/image.jpg',
+                'images' => ['https://example.com/image.jpg'],
                 'status' => 'AVAILABLE',
             ]);
 
@@ -110,7 +111,8 @@ class PrelovedListingApiTest extends TestCase
                     'condition',
                     'status',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ]);
 
@@ -147,6 +149,7 @@ class PrelovedListingApiTest extends TestCase
                 'description' => 'Good condition',
                 'price' => 8000000,
                 'condition' => 'INVALID',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -159,7 +162,7 @@ class PrelovedListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/preloved/listings', [
                 'title' => 'Used iPhone 12',
-                // missing price and condition
+                // missing price, condition, images
             ]);
 
         $response->assertStatus(422);
@@ -297,6 +300,7 @@ class PrelovedListingApiTest extends TestCase
                 'price' => 8000000,
                 'condition' => 'GOOD',
                 'status' => 'AVAILABLE',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(400);

@@ -17,7 +17,8 @@ class PrelovedListingController extends Controller
     {
         $items = PrelovedListing::with([
             'user:id,name,wa_number',
-            'category:id,name,icon'
+            'category:id,name,icon',
+            'images'
         ])
         ->where('status', 'AVAILABLE') 
         ->latest()->get();
@@ -41,9 +42,15 @@ class PrelovedListingController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|integer|min:0',
             'condition' => 'required|in:NEW,LIKE_NEW,GOOD,FAIR',
-            'image_url' => 'nullable|string',
+            'images' => 'required|array|min:1',
+            'images.*' => 'required|url',
+            'primary_image_url' => 'nullable|url',
             'status' => 'nullable|in:AVAILABLE,SOLD,CLOSED'
         ]);
+
+        $images = $request->input('images', []);
+        $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+        unset($validated['images'], $validated['primary_image_url']);
 
         $validated['user_id'] = $request->user()->id;
 
@@ -57,9 +64,17 @@ class PrelovedListingController extends Controller
 
         $listing = PrelovedListing::create($validated);
 
+        foreach ($images as $url) {
+            $listing->images()->create([
+                'image_url' => $url,
+                'is_primary' => $url === $primaryUrl,
+            ]);
+        }
+
         $listing->load([
             'user:id,name,wa_number', 
-            'category:id,name'
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Preloved listing posted successfully', 201);
@@ -76,7 +91,8 @@ class PrelovedListingController extends Controller
 
         $listing = PrelovedListing::with([
             'user:id,name,wa_number',
-            'category:id,name,icon'
+            'category:id,name,icon',
+            'images'
         ])->find($id);
 
         if (!$listing) {
@@ -124,7 +140,9 @@ class PrelovedListingController extends Controller
             'description' => 'sometimes|nullable|string',
             'price' => 'sometimes|required|integer|min:0',
             'condition' => 'sometimes|required|in:NEW,LIKE_NEW,GOOD,FAIR',
-            'image_url' => 'sometimes|nullable|string',
+            'images' => 'sometimes|required|array|min:1',
+            'images.*' => 'required|url',
+            'primary_image_url' => 'sometimes|nullable|url',
             'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,CLOSED'
         ]);
 
@@ -141,11 +159,38 @@ class PrelovedListingController extends Controller
             }
         }
 
+        if ($request->has('images')) {
+            $images = $request->input('images');
+            $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+            unset($validated['images'], $validated['primary_image_url']);
+
+            $listing->images()->delete(); 
+            foreach ($images as $url) {
+                $listing->images()->create([
+                    'image_url' => $url,
+                    'is_primary' => $url === $primaryUrl,
+                ]);
+            }
+        }
+
+        if ($request->has('primary_image_url') && !$request->has('images')) {
+            $newPrimaryUrl = $request->input('primary_image_url');
+            
+            if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
+                $listing->images()->update(['is_primary' => false]);
+                
+                $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
+            }
+
+            unset($validated['primary_image_url']);
+        }
+
         $listing->update($validated);
         
         $listing->load([
             'user:id,name,wa_number',
-            'category:id,name'
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Preloved listing updated successfully');
@@ -170,6 +215,7 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $listing->images()->delete();
         $listing->delete();
 
         return $this->successResponse(null, 'Preloved listing deleted successfully');

@@ -17,7 +17,8 @@ class JastipListingController extends Controller
     {
         $items = JastipListing::with([
             'user:id,name,wa_number',
-            'category:id,name,icon'    
+            'category:id,name,icon',
+            'images'
         ])
         ->where('status', 'ACTIVE')
         ->latest()->get();
@@ -40,10 +41,16 @@ class JastipListingController extends Controller
             'to_loc' => 'required|string|max:255',
             'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
             'status' => 'nullable|in:ACTIVE,CLOSED',
-            'image_url' => 'nullable|string',
+            'images' => 'required|array|min:1',
+            'images.*' => 'required|url',
+            'primary_image_url' => 'nullable|url',
             'lat' => 'nullable|numeric',
             'lng' => 'nullable|numeric'
         ]);
+
+        $images = $request->input('images', []);
+        $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+        unset($validated['images'], $validated['primary_image_url']);
 
         $validated['user_id'] = $request->user()->id;
 
@@ -57,9 +64,17 @@ class JastipListingController extends Controller
 
         $listing = JastipListing::create($validated);
 
+        foreach ($images as $url) {
+            $listing->images()->create([
+                'image_url' => $url,
+                'is_primary' => $url === $primaryUrl,
+            ]);
+        }
+
         $listing->load([
             'user:id,name,wa_number',
-            'category:id,name'    
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Jastip listing posted successfully', 201);
@@ -76,7 +91,8 @@ class JastipListingController extends Controller
 
         $listing = JastipListing::with([
             'user:id,name,wa_number',
-            'category:id,name,icon'
+            'category:id,name,icon',
+            'images'
         ])->find($id);
 
         if (!$listing) {
@@ -127,7 +143,9 @@ class JastipListingController extends Controller
             'to_loc' => 'sometimes|required|string|max:255',
             'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
             'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
-            'image_url' => 'sometimes|nullable|string',
+            'images' => 'sometimes|required|array|min:1',
+            'images.*' => 'required|url',
+            'primary_image_url' => 'sometimes|nullable|url',
             'lat' => 'sometimes|nullable|numeric',
             'lng' => 'sometimes|nullable|numeric'
         ]);
@@ -145,11 +163,38 @@ class JastipListingController extends Controller
             }
         }
 
+        if ($request->has('images')) {
+            $images = $request->input('images');
+            $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+            unset($validated['images'], $validated['primary_image_url']);
+
+            $listing->images()->delete(); 
+            foreach ($images as $url) {
+                $listing->images()->create([
+                    'image_url' => $url,
+                    'is_primary' => $url === $primaryUrl,
+                ]);
+            }
+        }
+
+        if ($request->has('primary_image_url') && !$request->has('images')) {
+            $newPrimaryUrl = $request->input('primary_image_url');
+            
+            if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
+                $listing->images()->update(['is_primary' => false]);
+
+                $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
+            }
+
+            unset($validated['primary_image_url']);
+        }
+
         $listing->update($validated);
 
         $listing->load([
             'user:id,name,wa_number',
-            'category:id,name'
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Jastip listing updated successfully');
@@ -174,6 +219,7 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $listing->images()->delete();
         $listing->delete();
 
         return $this->successResponse(null, 'Jastip listing deleted successfully');

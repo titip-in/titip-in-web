@@ -89,8 +89,8 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio
     restart: unless-stopped
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-titipin_minio}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-titipin_secret}
@@ -103,12 +103,16 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio_setup
     depends_on:
       - minio
+    env_file:
+      - .env
     entrypoint: >
       /bin/sh -c "
-      sleep 5;
-      mc alias set myminio http://minio:9000 ${AWS_ACCESS_KEY_ID:-titipin_minio} ${AWS_SECRET_ACCESS_KEY:-titipin_secret};
-      mc mb myminio/${AWS_BUCKET:-titipin-bucket} --ignore-existing;
-      mc anonymous set public myminio/${AWS_BUCKET:-titipin-bucket};
+      echo 'Tunggu MinIO nyala...';
+      sleep 15;
+      mc alias set myminio http://minio:9000 $$AWS_ACCESS_KEY_ID $$AWS_SECRET_ACCESS_KEY;
+      mc mb myminio/$$AWS_BUCKET --ignore-existing;
+      mc anonymous set download myminio/$$AWS_BUCKET;
+      echo 'Setup MinIO Selesai!';
       exit 0;
       "
 

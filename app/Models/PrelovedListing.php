@@ -12,6 +12,10 @@ class PrelovedListing extends Model
 {
     use HasUuids, HasFactory;
 
+    protected $hidden = [
+        'embedding',
+    ];
+
     public function user() 
     {
         return $this->belongsTo(User::class);

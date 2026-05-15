@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PrelovedListing;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -55,10 +56,12 @@ class PrelovedListingController extends Controller
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $textToEmbed = $validated['title'] . ' ' . ($validated['description'] ?? '');
+            $categoryName = Category::find($validated['category_id'])->name ?? '';
+            $textToEmbed = $categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '');
+            
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to generate embedding for Preloved: ' . $e->getMessage());
         }
 
@@ -146,15 +149,18 @@ class PrelovedListingController extends Controller
             'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,CLOSED'
         ]);
 
-        if (isset($validated['title']) || isset($validated['description'])) {
+        if (isset($validated['title']) || isset($validated['description']) || isset($validated['category_id'])) {
             try {
                 $newTitle = $validated['title'] ?? $listing->title;
                 $newDesc = $validated['description'] ?? $listing->description;
+                $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $textToEmbed = $newTitle . ' ' . $newDesc;
+                $categoryName = Category::find($newCatId)->name ?? '';
+                $textToEmbed = $categoryName . ' - ' . $newTitle . ' ' . $newDesc;
+                
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Failed to update embedding for Preloved: ' . $e->getMessage());
             }
         }
@@ -178,7 +184,6 @@ class PrelovedListingController extends Controller
             
             if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
                 $listing->images()->update(['is_primary' => false]);
-                
                 $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
             }
 

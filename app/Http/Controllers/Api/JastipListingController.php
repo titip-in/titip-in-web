@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\JastipListing;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -22,6 +23,7 @@ class JastipListingController extends Controller
         ])
         ->where('status', 'ACTIVE')
         ->latest()->get();
+        
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
 
@@ -37,6 +39,8 @@ class JastipListingController extends Controller
 
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'from_loc' => 'required|string|max:255',
             'to_loc' => 'required|string|max:255',
             'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
@@ -55,10 +59,12 @@ class JastipListingController extends Controller
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $textToEmbed = "Jastip dari " . $validated['from_loc'] . " ke " . $validated['to_loc'];
+            $categoryName = Category::find($validated['category_id'])->name ?? '';
+            $textToEmbed = $categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '') . ' - Jastip dari ' . $validated['from_loc'] . ' ke ' . $validated['to_loc'];
+            
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to generate embedding for Jastip: ' . $e->getMessage());
         }
 
@@ -139,6 +145,8 @@ class JastipListingController extends Controller
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
             'from_loc' => 'sometimes|required|string|max:255',
             'to_loc' => 'sometimes|required|string|max:255',
             'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
@@ -150,15 +158,20 @@ class JastipListingController extends Controller
             'lng' => 'sometimes|nullable|numeric'
         ]);
 
-        if (isset($validated['from_loc']) || isset($validated['to_loc'])) {
+        if (isset($validated['from_loc']) || isset($validated['to_loc']) || isset($validated['category_id']) || isset($validated['title']) || isset($validated['description'])) {
             try {
+                $newTitle = $validated['title'] ?? $listing->title;
+                $newDesc = $validated['description'] ?? $listing->description;
                 $newFromLoc = $validated['from_loc'] ?? $listing->from_loc;
                 $newToLoc = $validated['to_loc'] ?? $listing->to_loc;
+                $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $textToEmbed = "Jastip dari " . $newFromLoc . " ke " . $newToLoc;
+                $categoryName = Category::find($newCatId)->name ?? '';
+                $textToEmbed = $categoryName . ' - ' . $newTitle . ' ' . $newDesc . ' - Jastip dari ' . $newFromLoc . ' ke ' . $newToLoc;
+                
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Failed to update embedding for Jastip: ' . $e->getMessage());
             }
         }
@@ -181,8 +194,7 @@ class JastipListingController extends Controller
             $newPrimaryUrl = $request->input('primary_image_url');
             
             if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
-                $listing->images()->update(['is_primary' => false]);
-
+                $listing->images()->update(['is_primary' => false]); 
                 $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
             }
 

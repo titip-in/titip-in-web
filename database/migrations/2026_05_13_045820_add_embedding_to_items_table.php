@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('jastip_listings', function (Blueprint $table) {
-            $table->vector('embedding', 768)->nullable()->index();
+            $table->vector('embedding', 3072)->nullable()->index();
         });
 
         Schema::table('preloved_listings', function (Blueprint $table) {
-            $table->vector('embedding', 768)->nullable()->index();
+            $table->vector('embedding', 3072)->nullable()->index();
         });
     }
 

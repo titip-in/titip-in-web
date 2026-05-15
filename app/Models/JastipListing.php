@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['user_id', 'from_loc', 'to_loc', 'deadline', 'status', 'lat', 'lng'])]
+#[Fillable(['user_id', 'category_id', 'from_loc', 'to_loc', 'deadline', 'status', 'lat', 'lng', 'embedding'])]
 class JastipListing extends Model
 {
     use HasUuids, HasFactory;

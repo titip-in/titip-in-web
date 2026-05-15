@@ -16,6 +16,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     volumes:
       - app_storage:/var/www/html/storage/app/public
     depends_on:
@@ -28,14 +30,11 @@ services:
     image: ghcr.io/titip-in/titip-in-web-app:latest
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_worker
     restart: unless-stopped
-    command: >
-      sh -c "
-        until PGPASSWORD=\"$$DB_PASSWORD\" pg_isready -h \"$$DB_HOST\" -U \"$$DB_USERNAME\" -d \"$$DB_DATABASE\" -q; do sleep 2; done;
-        until redis-cli -h \"$$REDIS_HOST\" -p \"$$REDIS_PORT\" ping 2>/dev/null | grep -q PONG; do sleep 2; done;
-        exec php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --verbose
-      "
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --verbose
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     depends_on:
       db:
         condition: service_healthy
@@ -47,13 +46,11 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_scheduler
     restart: unless-stopped
     command: >
-      sh -c "
-        until PGPASSWORD=\"$$DB_PASSWORD\" pg_isready -h \"$$DB_HOST\" -U \"$$DB_USERNAME\" -d \"$$DB_DATABASE\" -q; do sleep 2; done;
-        until redis-cli -h \"$$REDIS_HOST\" -p \"$$REDIS_PORT\" ping 2>/dev/null | grep -q PONG; do sleep 2; done;
-        while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done
-      "
+      sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     depends_on:
       db:
         condition: service_healthy

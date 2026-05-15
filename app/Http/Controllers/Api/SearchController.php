@@ -28,7 +28,8 @@ class SearchController extends Controller
             if ($type === 'jastip') {
                 $results = JastipListing::with([
                         'user:id,name,wa_number',
-                        'category:id,name,icon'
+                        'category:id,name,icon',
+                        'images'
                     ])
                     ->where('status', 'ACTIVE')
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
@@ -36,7 +37,8 @@ class SearchController extends Controller
             } else {
                 $results = PrelovedListing::with([
                         'user:id,name,wa_number',
-                        'category:id,name,icon'
+                        'category:id,name,icon',
+                        'images'
                     ])
                     ->where('status', 'AVAILABLE')
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
@@ -45,7 +47,7 @@ class SearchController extends Controller
 
             return $this->successResponse($results, 'Semantic search completed successfully');
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Vector Search Error: ' . $e->getMessage());
 
             $errorMessage = config('app.debug') 

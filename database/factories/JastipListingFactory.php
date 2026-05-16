@@ -23,7 +23,7 @@ class JastipListingFactory extends Factory
 
         return [
             'user_id' => User::inRandomOrder()->value('id') ?? User::factory(),
-            'category_id' => Category::inRandomOrder()->value('id'),
+            'category_id' => Category::where('type', 'jastip')->inRandomOrder()->value('id'),
             'title' => $this->faker->sentence(3),
             'description' => $this->faker->paragraph(),
             'from_loc' => $this->faker->city(),

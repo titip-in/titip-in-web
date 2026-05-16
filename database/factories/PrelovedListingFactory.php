@@ -23,7 +23,7 @@ class PrelovedListingFactory extends Factory
 
         return [
             'user_id' => User::inRandomOrder()->value('id') ?? User::factory(),
-            'category_id' => Category::inRandomOrder()->value('id'),
+            'category_id' => Category::where('type', 'preloved')->inRandomOrder()->value('id'),
             'title' => $this->faker->sentence(3),
             'description' => $this->faker->paragraph(),
             'price' => $this->faker->numberBetween(100000, 5000000),

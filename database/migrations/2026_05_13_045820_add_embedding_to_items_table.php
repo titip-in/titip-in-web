@@ -18,6 +18,14 @@ return new class extends Migration
         Schema::table('preloved_listings', function (Blueprint $table) {
             $table->vector('embedding', 3072)->nullable();
         });
+
+        Schema::table('jastip_requests', function (Blueprint $table) {
+            $table->vector('embedding', 3072)->nullable();
+        });
+
+        Schema::table('preloved_requests', function (Blueprint $table) {
+            $table->vector('embedding', 3072)->nullable();
+        });
     }
 
     /**
@@ -30,6 +38,14 @@ return new class extends Migration
         });
 
         Schema::table('preloved_listings', function (Blueprint $table) {
+            $table->dropColumn('embedding');
+        });
+
+        Schema::table('jastip_requests', function (Blueprint $table) {
+            $table->dropColumn('embedding');
+        });
+
+        Schema::table('preloved_requests', function (Blueprint $table) {
             $table->dropColumn('embedding');
         });
     }

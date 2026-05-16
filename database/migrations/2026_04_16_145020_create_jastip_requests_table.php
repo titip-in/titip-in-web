@@ -15,9 +15,10 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignId('category_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('title'); 
+            $table->text('description')->nullable();
             $table->string('from_loc');
             $table->string('to_loc');
-            $table->text('notes')->nullable();
             $table->enum('status', ['OPEN', 'TAKEN', 'CLOSED'])->default('OPEN');
             $table->timestamps();
         });

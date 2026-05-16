@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('wa_number')->unique();
             $table->string('avatar_url')->nullable();
+            $table->string('status')->nullable();            
             $table->rememberToken();
             $table->timestamps();
         });

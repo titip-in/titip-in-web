@@ -24,23 +24,27 @@ class SearchController extends Controller
         try {
             $embeddingArray = Str::of($keyword)->toEmbeddings();
             $vectorString = '[' . implode(',', $embeddingArray) . ']';
+            
+            $threshold = 0.40;
 
             if ($type === 'jastip') {
                 $results = JastipListing::with([
-                        'user:id,name,wa_number',
+                        'user:id,name,wa_number,avatar_url,status', 
                         'category:id,name,icon',
                         'images'
                     ])
                     ->where('status', 'ACTIVE')
+                    ->whereRaw('embedding <=> ?::vector < ?', [$vectorString, $threshold])
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
                     ->cursorPaginate(10); 
             } else {
                 $results = PrelovedListing::with([
-                        'user:id,name,wa_number',
+                        'user:id,name,wa_number,avatar_url,status', 
                         'category:id,name,icon',
                         'images'
                     ])
                     ->where('status', 'AVAILABLE')
+                    ->whereRaw('embedding <=> ?::vector < ?', [$vectorString, $threshold])
                     ->orderByRaw('embedding <=> ?::vector', [$vectorString])
                     ->cursorPaginate(10);
             }

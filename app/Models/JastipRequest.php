@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-#[Fillable(['user_id', 'from_loc', 'to_loc', 'notes', 'status'])]
+#[Fillable(['user_id', 'category_id', 'title', 'description', 'from_loc', 'to_loc', 'status', 'embedding'])]
 class JastipRequest extends Model
 {
     use HasUuids, HasFactory;
+
+
+    protected $hidden = [
+        'embedding',
+    ];
     
     public function user()
     {

@@ -33,7 +33,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'wa_number' => 'sometimes|required|string|unique:users,wa_number,' . $user->id,
-            'avatar_url' => 'sometimes|nullable|string'
+            'avatar_url' => 'sometimes|nullable|string',
+            'status' => 'sometimes|nullable|string|max:100'
         ]);
 
         $user->update($validated);

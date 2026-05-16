@@ -13,7 +13,8 @@ class UserApiTest extends TestCase
     public function test_authenticated_user_can_get_profile()
     {
         $user = User::factory()->create([
-            'wa_number' => '62811111111'
+            'wa_number' => '62811111111',
+            'status' => 'Mahasiswa FILKOM UB'
         ]);
 
         $response = $this->actingAs($user)->getJson('/api/v1/me');
@@ -28,18 +29,19 @@ class UserApiTest extends TestCase
                     'email',
                     'wa_number',
                     'avatar_url',
+                    'status',
                     'created_at',
                     'updated_at'
                 ]
             ])
             ->assertJsonPath('data.id', $user->id)
-            ->assertJsonPath('data.email', $user->email);
+            ->assertJsonPath('data.email', $user->email)
+            ->assertJsonPath('data.status', 'Mahasiswa FILKOM UB');
     }
 
     public function test_unauthenticated_user_cannot_get_profile()
     {
         $response = $this->getJson('/api/v1/me');
-
         $response->assertStatus(401);
     }
 
@@ -47,25 +49,29 @@ class UserApiTest extends TestCase
     {
         $user = User::factory()->create([
             'name' => 'Old Name',
-            'wa_number' => '62811111111'
+            'wa_number' => '62811111111',
+            'status' => 'Bio Lama'
         ]);
 
         $response = $this->actingAs($user)->patchJson('/api/v1/me', [
             'name' => 'New Name',
             'wa_number' => '08222222222',
-            'avatar_url' => 'https://example.com/avatar.jpg'
+            'avatar_url' => 'https://example.com/avatar.jpg',
+            'status' => 'Asprak BasDat'
         ]);
 
         $response->assertStatus(200)
             ->assertJsonPath('data.name', 'New Name')
             ->assertJsonPath('data.wa_number', '628222222222')
-            ->assertJsonPath('data.avatar_url', 'https://example.com/avatar.jpg');
+            ->assertJsonPath('data.avatar_url', 'https://example.com/avatar.jpg')
+            ->assertJsonPath('data.status', 'Asprak BasDat');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'name' => 'New Name',
             'wa_number' => '628222222222',
-            'avatar_url' => 'https://example.com/avatar.jpg'
+            'avatar_url' => 'https://example.com/avatar.jpg',
+            'status' => 'Asprak BasDat'
         ]);
     }
 

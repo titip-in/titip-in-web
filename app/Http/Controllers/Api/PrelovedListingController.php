@@ -17,7 +17,7 @@ class PrelovedListingController extends Controller
     public function index()
     {
         $items = PrelovedListing::with([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name,icon',
             'images'
         ])
@@ -56,8 +56,8 @@ class PrelovedListingController extends Controller
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $categoryName = Category::find($validated['category_id'])->name ?? '';
-            $textToEmbed = $categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '');
+            $categoryName = Category::find($validated['category_id'])?->name ?? '';
+            $textToEmbed = trim($categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? ''));
             
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
@@ -75,7 +75,7 @@ class PrelovedListingController extends Controller
         }
 
         $listing->load([
-            'user:id,name,wa_number', 
+            'user:id,name,wa_number,avatar_url,status', 
             'category:id,name',
             'images'
         ]);
@@ -93,7 +93,7 @@ class PrelovedListingController extends Controller
         }
 
         $listing = PrelovedListing::with([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name,icon',
             'images'
         ])->find($id);
@@ -102,8 +102,8 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Preloved listing not found', 404);
         }
 
-        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
-            return $this->errorResponse('This Preloved listing is closed and cannot be viewed by the public.', 403);
+        if ($listing->status !== 'AVAILABLE' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Preloved listing is not available and cannot be viewed by the public.', 403);
         }
 
         return $this->successResponse($listing, 'Preloved listing detail retrieved successfully');
@@ -128,7 +128,7 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
-        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'AVAILABLE';
+        $isReactivating = $listing->status !== 'AVAILABLE' && $request->input('status') === 'AVAILABLE';
         if ($isReactivating) {
             $activeCount = PrelovedListing::where('user_id', $request->user()->id)->where('status', 'AVAILABLE')->count();
             if ($activeCount >= 5) {
@@ -155,8 +155,8 @@ class PrelovedListingController extends Controller
                 $newDesc = $validated['description'] ?? $listing->description;
                 $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $categoryName = Category::find($newCatId)->name ?? '';
-                $textToEmbed = $categoryName . ' - ' . $newTitle . ' ' . $newDesc;
+                $categoryName = Category::find($newCatId)?->name ?? '';
+                $textToEmbed = trim($categoryName . ' - ' . $newTitle . ' ' . $newDesc);
                 
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
@@ -193,7 +193,7 @@ class PrelovedListingController extends Controller
         $listing->update($validated);
         
         $listing->load([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name',
             'images'
         ]);

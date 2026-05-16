@@ -17,7 +17,7 @@ class JastipListingController extends Controller
     public function index()
     {
         $items = JastipListing::with([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name,icon',
             'images'
         ])
@@ -59,8 +59,8 @@ class JastipListingController extends Controller
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $categoryName = Category::find($validated['category_id'])->name ?? '';
-            $textToEmbed = $categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '') . ' - Jastip dari ' . $validated['from_loc'] . ' ke ' . $validated['to_loc'];
+            $categoryName = Category::find($validated['category_id'])?->name ?? '';
+            $textToEmbed = trim($categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '') . ' - Jastip dari ' . $validated['from_loc'] . ' ke ' . $validated['to_loc']);
             
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
@@ -78,7 +78,7 @@ class JastipListingController extends Controller
         }
 
         $listing->load([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name',
             'images'
         ]);
@@ -96,7 +96,7 @@ class JastipListingController extends Controller
         }
 
         $listing = JastipListing::with([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name,icon',
             'images'
         ])->find($id);
@@ -105,8 +105,8 @@ class JastipListingController extends Controller
             return $this->errorResponse('Jastip listing not found', 404);
         }
 
-        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
-            return $this->errorResponse('This Jastip listing is closed and cannot be viewed by the public.', 403);
+        if ($listing->status !== 'ACTIVE' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Jastip listing is not active and cannot be viewed by the public.', 403);
         }
 
         return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
@@ -131,7 +131,7 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
-        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'ACTIVE';
+        $isReactivating = $listing->status !== 'ACTIVE' && $request->input('status') === 'ACTIVE';
         if ($isReactivating) {
             $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
             if ($activeCount >= 5) {
@@ -166,8 +166,8 @@ class JastipListingController extends Controller
                 $newToLoc = $validated['to_loc'] ?? $listing->to_loc;
                 $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $categoryName = Category::find($newCatId)->name ?? '';
-                $textToEmbed = $categoryName . ' - ' . $newTitle . ' ' . $newDesc . ' - Jastip dari ' . $newFromLoc . ' ke ' . $newToLoc;
+                $categoryName = Category::find($newCatId)?->name ?? '';
+                $textToEmbed = trim($categoryName . ' - ' . $newTitle . ' ' . $newDesc . ' - Jastip dari ' . $newFromLoc . ' ke ' . $newToLoc);
                 
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
@@ -204,7 +204,7 @@ class JastipListingController extends Controller
         $listing->update($validated);
 
         $listing->load([
-            'user:id,name,wa_number',
+            'user:id,name,wa_number,avatar_url,status',
             'category:id,name',
             'images'
         ]);

@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Redis;
 use App\Mail\VerifyEmailMail;
 use App\Mail\ResetPasswordMail;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -67,6 +68,7 @@ class AuthController extends Controller
                 'password' => Hash::make($validated['password']),
                 'wa_number' => $validated['wa_number'] ?? $user->wa_number,
                 'auth_provider' => 'local',
+                'google_id' => null,
             ]);
             
         } else {
@@ -167,6 +169,15 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && $user->auth_provider === 'google' && is_null($user->password)) {
+            return $this->errorResponse(
+                'This account was registered via Google. Please login with Google, or use "Forgot Password" to set a password for manual login.',
+                422
+            );
+        }
+
         if (!Auth::attempt($request->only('email', 'password'))) {
             return $this->errorResponse('Invalid email or password', 401);
         }
@@ -240,6 +251,11 @@ class AuthController extends Controller
         }
 
         $user->password = Hash::make($request->password);
+
+        if ($user->auth_provider === 'google') {
+            $user->auth_provider = 'local';
+        }
+
         $user->save();
 
         Redis::del("password_reset:{$request->token}");
@@ -248,5 +264,85 @@ class AuthController extends Controller
         $user->tokens()->delete();
 
         return $this->successResponse(null, 'Password has been reset successfully. Please login with your new password.');
+    }
+
+    public function redirectToGoogle()
+    {
+        /** @var \Laravel\Socialite\Two\GoogleProvider $driver */
+        $driver = Socialite::driver('google');
+        $url = $driver->stateless()->redirect()->getTargetUrl();
+
+        return $this->successResponse(['url' => $url], 'Google OAuth URL generated');
+    }
+
+    public function handleGoogleCallback(Request $request)
+    {
+        try {
+            /** @var \Laravel\Socialite\Two\GoogleProvider $driver */
+            $driver = Socialite::driver('google');
+            $googleUser = $driver->stateless()->user();
+        } catch (\Exception $e) {
+            return $this->errorResponse('Google authentication failed. Please try again.', 422);
+        }
+
+        $user = User::where('google_id', $googleUser->getId())->first();
+
+        if (!$user) {
+            $existingUser = User::where('email', $googleUser->getEmail())->first();
+
+            if ($existingUser) {
+                if ($existingUser->email_verified_at !== null) {
+                    $existingUser->google_id = $googleUser->getId();
+
+                    if (is_null($existingUser->avatar_url)) {
+                        $existingUser->avatar_url = $googleUser->getAvatar();
+                    }
+
+                    $existingUser->save();
+                    $user = $existingUser;
+
+                } else {
+                    $existingUser->tokens()->delete();
+
+                    $oldEmailToken = Redis::get("user_email_token:{$existingUser->id}");
+                    if ($oldEmailToken) {
+                        Redis::del("email_verify:{$oldEmailToken}");
+                        Redis::del("user_email_token:{$existingUser->id}");
+                    }
+
+                    $existingUser->update([
+                        'name' => $googleUser->getName(),
+                        'google_id' => $googleUser->getId(),
+                        'avatar_url' => $googleUser->getAvatar(),
+                        'auth_provider' => 'google',
+                        'password' => null,
+                        'email_verified_at' => now(),
+                    ]);
+
+                    $user = $existingUser;
+                }
+
+            } else {
+                $user = User::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'avatar_url' => $googleUser->getAvatar(),
+                    'auth_provider' => 'google',
+                    'password' => null,
+                    'email_verified_at' => now(),
+                ]);
+            }
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        $data = [
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
+        ];
+
+        return $this->successResponse($data, 'Google login successful');
     }
 }

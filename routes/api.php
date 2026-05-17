@@ -12,8 +12,11 @@ use App\Http\Controllers\Api\UploadController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserActivityController;
+use App\Http\Controllers\Api\DownloadController;
 
 Route::prefix('v1')->group(function () {
+
+    Route::get('/download/android', [DownloadController::class, 'downloadAndroid']);
 
     Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
     Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);

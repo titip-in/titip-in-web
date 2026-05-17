@@ -20,6 +20,7 @@ services:
       - TZ=Asia/Jakarta
     volumes:
       - app_storage:/var/www/html/storage/app/public
+      - /var/www/titip-downloads/android:/var/www/titip-downloads/android:ro
     depends_on:
       db:
         condition: service_healthy

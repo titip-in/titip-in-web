@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/social-auth
 
 env:
   REGISTRY: ghcr.io
@@ -56,17 +57,19 @@ jobs:
       - name: Update local repository
         run: |
           cd ~/titip-in-web
-          git pull origin main
-          
+          git fetch origin
+          git checkout ${{ github.ref_name }}
+          git pull origin ${{ github.ref_name }}
+
       - name: Pull latest Docker images
         run: |
           cd ~/titip-in-web
           sudo docker compose -f docker-compose.prod.yaml pull
-          
+
       - name: Restart services with new images
         run: |
           cd ~/titip-in-web
           sudo docker compose -f docker-compose.prod.yaml up -d
-          
+
       - name: Clean up unused Docker images
         run: sudo docker image prune -a -f

@@ -14,12 +14,15 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->string('wa_number')->unique();
             $table->string('avatar_url')->nullable();
-            $table->string('status')->nullable();            
+            $table->string('status')->nullable(); 
+            $table->string('email')->unique()->nullable();
+            $table->string('wa_number')->unique()->nullable();
+            $table->string('password')->nullable();
+            $table->string('google_id')->unique()->nullable();
+            $table->enum('auth_provider', ['local', 'google', 'whatsapp'])->default('local');
+            $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('wa_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

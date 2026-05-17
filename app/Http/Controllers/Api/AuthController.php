@@ -290,7 +290,8 @@ class AuthController extends Controller
             $driver = Socialite::driver('google');
             $googleUser = $driver->stateless()->user();
         } catch (\Exception $e) {
-            return $this->errorResponse('Google authentication failed. Please try again.', 422);
+            $frontendLoginUrl = env('FRONTEND_URL') . '/login?error=google_auth_failed';
+            return redirect()->away($frontendLoginUrl);
         }
 
         $user = User::where('google_id', $googleUser->getId())->first();
@@ -345,12 +346,8 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        $data = [
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user,
-        ];
-
-        return $this->successResponse($data, 'Google login successful');
+        $frontendCallbackUrl = env('FRONTEND_URL') . '/auth/google/callback?token=' . $token;
+        
+        return redirect()->away($frontendCallbackUrl);
     }
 }

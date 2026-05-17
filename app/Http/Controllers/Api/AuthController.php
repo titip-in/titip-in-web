@@ -55,11 +55,15 @@ class AuthController extends Controller
             }
 
             if (!empty($validated['wa_number'])) {
-                $waExists = User::where('wa_number', $validated['wa_number'])
+                $competitor = User::where('wa_number', $validated['wa_number'])
                                 ->where('id', '!=', $user->id)
-                                ->exists();
-                if ($waExists) {
-                    return $this->errorResponse('WhatsApp number is already in use.', 422);
+                                ->first();
+                if ($competitor) {
+                    if ($competitor->wa_verified_at !== null) {
+                        return $this->errorResponse('WhatsApp number is already in use by a verified account.', 422);
+                    }
+                    $competitor->wa_number = null;
+                    $competitor->save();
                 }
             }
 
@@ -73,9 +77,13 @@ class AuthController extends Controller
             
         } else {
             if (!empty($validated['wa_number'])) {
-                $waExists = User::where('wa_number', $validated['wa_number'])->exists();
-                if ($waExists) {
-                    return $this->errorResponse('WhatsApp number is already in use.', 422);
+                $competitor = User::where('wa_number', $validated['wa_number'])->first();
+                if ($competitor) {
+                    if ($competitor->wa_verified_at !== null) {
+                        return $this->errorResponse('WhatsApp number is already in use by a verified account.', 422);
+                    }
+                    $competitor->wa_number = null;
+                    $competitor->save();
                 }
             }
 

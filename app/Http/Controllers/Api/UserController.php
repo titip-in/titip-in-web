@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;           
 use Illuminate\Support\Facades\Redis; 
+use App\Models\User;
 use App\Mail\VerifyEmailMail;
 use App\Services\WhatsAppService;  
 
@@ -21,7 +22,9 @@ class UserController extends Controller
 
     public function update(Request $request)
     {
-        if ($request->has('wa_number')) {
+        $user = $request->user();
+
+        if ($request->has('wa_number') && !empty($request->wa_number)) {
             $wa = preg_replace('/[^0-9]/', '', $request->wa_number);
             
             if (str_starts_with($wa, '0')) {
@@ -32,14 +35,23 @@ class UserController extends Controller
             }
             
             $request->merge(['wa_number' => $wa]);
-        }
 
-        $user = $request->user();
+            if ($wa !== $user->wa_number) {
+                $competitor = User::where('wa_number', $wa)->first();
+                if ($competitor) {
+                    if ($competitor->wa_verified_at !== null) {
+                        return $this->errorResponse('WhatsApp number is already in use by a verified account.', 422);
+                    }
+                    $competitor->wa_number = null;
+                    $competitor->save();
+                }
+            }
+        }
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
-            'wa_number' => 'sometimes|required|string|unique:users,wa_number,' . $user->id,
+            'wa_number' => 'sometimes|nullable|string|max:20', 
             'avatar_url' => 'sometimes|nullable|string',
             'status' => 'sometimes|nullable|string|max:100'
         ]);
@@ -130,6 +142,10 @@ class UserController extends Controller
         ]);
 
         $user = $request->user();
+
+        if (empty($user->wa_number)) {
+            return $this->errorResponse('Nomor WhatsApp Anda kosong atau telah diklaim oleh akun lain. Silakan perbarui profil Anda.', 400);
+        }
 
         if ($user->wa_verified_at !== null) {
             return $this->errorResponse('WhatsApp number is already verified.', 400);

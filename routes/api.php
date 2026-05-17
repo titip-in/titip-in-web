@@ -14,11 +14,13 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserActivityController;
 
 Route::prefix('v1')->group(function () {
-    
+
+    Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
+    Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
+
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
-        
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     });
@@ -42,18 +44,22 @@ Route::prefix('v1')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
-        
-        Route::post('/email/resend', [AuthController::class, 'resendEmail']);
+
+        Route::middleware('throttle:otp-request')->group(function () {
+            Route::post('/email/resend', [AuthController::class, 'resendEmail']);
+            Route::post('/me/whatsapp/request-otp', [UserController::class, 'requestWaOtp']);
+        });
 
         Route::get('/me', [UserController::class, 'show']);
+
         Route::middleware('throttle:posting')->group(function () {
             Route::match(['put', 'patch'], '/me', [UserController::class, 'update']);
-
             Route::put('/me/password', [UserController::class, 'changePassword']);
+            Route::post('/me/whatsapp/verify-otp', [UserController::class, 'verifyWaOtp']);
         });
 
         Route::middleware('profile.completed')->group(function () {
-            
+
             Route::middleware('throttle:posting')->group(function () {
                 Route::post('/upload', [UploadController::class, 'uploadImage']);
 

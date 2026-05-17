@@ -18,7 +18,12 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:auth')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
+        
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     });
+
+    Route::post('/email/verify', [AuthController::class, 'verifyEmail']);
 
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/categories/{id}', [CategoryController::class, 'show']);
@@ -36,35 +41,43 @@ Route::prefix('v1')->group(function () {
     Route::get('/search', [SearchController::class, 'search'])->middleware('throttle:ai-search');
 
     Route::middleware('auth:sanctum')->group(function () {
-        
         Route::post('/logout', [AuthController::class, 'logout']);
         
+        Route::post('/email/resend', [AuthController::class, 'resendEmail']);
+
         Route::get('/me', [UserController::class, 'show']);
-        
         Route::middleware('throttle:posting')->group(function () {
             Route::match(['put', 'patch'], '/me', [UserController::class, 'update']);
-            Route::post('/upload', [UploadController::class, 'uploadImage']);
 
-            Route::post('/preloved/listings', [PrelovedListingController::class, 'store']);
-            Route::match(['put', 'patch'], '/preloved/listings/{id}', [PrelovedListingController::class, 'update']);
-            Route::delete('/preloved/listings/{id}', [PrelovedListingController::class, 'destroy']);
-
-            Route::post('/preloved/requests', [PrelovedRequestController::class, 'store']);
-            Route::match(['put', 'patch'], '/preloved/requests/{id}', [PrelovedRequestController::class, 'update']);
-            Route::delete('/preloved/requests/{id}', [PrelovedRequestController::class, 'destroy']);
-
-            Route::post('/jastip/listings', [JastipListingController::class, 'store']);
-            Route::match(['put', 'patch'], '/jastip/listings/{id}', [JastipListingController::class, 'update']);
-            Route::delete('/jastip/listings/{id}', [JastipListingController::class, 'destroy']);
-
-            Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
-            Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
-            Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
+            Route::put('/me/password', [UserController::class, 'changePassword']);
         });
 
-        Route::get('/me/jastip/listings', [UserActivityController::class, 'myJastipListings']);
-        Route::get('/me/jastip/requests', [UserActivityController::class, 'myJastipRequests']);
-        Route::get('/me/preloved/listings', [UserActivityController::class, 'myPrelovedListings']);
-        Route::get('/me/preloved/requests', [UserActivityController::class, 'myPrelovedRequests']);
+        Route::middleware('profile.completed')->group(function () {
+            
+            Route::middleware('throttle:posting')->group(function () {
+                Route::post('/upload', [UploadController::class, 'uploadImage']);
+
+                Route::post('/preloved/listings', [PrelovedListingController::class, 'store']);
+                Route::match(['put', 'patch'], '/preloved/listings/{id}', [PrelovedListingController::class, 'update']);
+                Route::delete('/preloved/listings/{id}', [PrelovedListingController::class, 'destroy']);
+
+                Route::post('/preloved/requests', [PrelovedRequestController::class, 'store']);
+                Route::match(['put', 'patch'], '/preloved/requests/{id}', [PrelovedRequestController::class, 'update']);
+                Route::delete('/preloved/requests/{id}', [PrelovedRequestController::class, 'destroy']);
+
+                Route::post('/jastip/listings', [JastipListingController::class, 'store']);
+                Route::match(['put', 'patch'], '/jastip/listings/{id}', [JastipListingController::class, 'update']);
+                Route::delete('/jastip/listings/{id}', [JastipListingController::class, 'destroy']);
+
+                Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
+                Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
+                Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
+            });
+
+            Route::get('/me/jastip/listings', [UserActivityController::class, 'myJastipListings']);
+            Route::get('/me/jastip/requests', [UserActivityController::class, 'myJastipRequests']);
+            Route::get('/me/preloved/listings', [UserActivityController::class, 'myPrelovedListings']);
+            Route::get('/me/preloved/requests', [UserActivityController::class, 'myPrelovedRequests']);
+        });
     });
 });

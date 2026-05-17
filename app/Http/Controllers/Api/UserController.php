@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;           
 use Illuminate\Support\Facades\Redis; 
-use App\Mail\VerifyEmailMail;        
+use App\Mail\VerifyEmailMail;
+use App\Services\WhatsAppService;  
 
 class UserController extends Controller
 {
@@ -95,5 +96,56 @@ class UserController extends Controller
         $user->tokens()->where('id', '!=', $user->currentAccessToken()->id)->delete();
 
         return $this->successResponse(null, 'Password changed successfully.');
+    }
+
+    public function requestWaOtp(Request $request, WhatsAppService $waService)
+    {
+        $user = $request->user();
+
+        if (!$user->wa_number) {
+            return $this->errorResponse('WhatsApp number is not set. Please update your profile first.', 400);
+        }
+
+        if ($user->wa_verified_at !== null) {
+            return $this->errorResponse('WhatsApp number is already verified.', 400);
+        }
+
+        $otpCode = (string) random_int(100000, 999999);
+
+        Redis::setex("wa_otp:{$user->id}", 300, $otpCode);
+
+        $sent = $waService->sendOTP($user->wa_number, $otpCode);
+
+        if (!$sent) {
+            return $this->errorResponse('Failed to send OTP. Please try again later.', 500);
+        }
+
+        return $this->successResponse(null, 'OTP has been sent to your WhatsApp.');
+    }
+
+    public function verifyWaOtp(Request $request)
+    {
+        $request->validate([
+            'otp' => 'required|string|size:6'
+        ]);
+
+        $user = $request->user();
+
+        if ($user->wa_verified_at !== null) {
+            return $this->errorResponse('WhatsApp number is already verified.', 400);
+        }
+
+        $storedOtp = Redis::get("wa_otp:{$user->id}");
+
+        if (!$storedOtp || $storedOtp !== $request->otp) {
+            return $this->errorResponse('Invalid or expired OTP.', 400);
+        }
+
+        $user->wa_verified_at = now();
+        $user->save();
+
+        Redis::del("wa_otp:{$user->id}");
+
+        return $this->successResponse(null, 'WhatsApp number verified successfully.');
     }
 }

@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\UserActivityController;
 use App\Http\Controllers\Api\DownloadController;
+use App\Http\Controllers\Api\Admin\AdminAuthController;
+use App\Http\Controllers\Api\Admin\AdminManagementController;
 
 Route::prefix('v1')->group(function () {
 
@@ -45,7 +47,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/search', [SearchController::class, 'search'])->middleware('throttle:ai-search');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'check.banned'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
 
         Route::middleware('throttle:otp-request')->group(function () {
@@ -63,22 +65,25 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('profile.completed')->group(function () {
 
-            Route::middleware('throttle:posting')->group(function () {
-                Route::post('/upload', [UploadController::class, 'uploadImage']);
+            Route::post('/upload', [UploadController::class, 'uploadImage'])->middleware('throttle:posting');
 
+            Route::middleware(['throttle:posting', 'check.limit'])->group(function () {
                 Route::post('/preloved/listings', [PrelovedListingController::class, 'store']);
+                Route::post('/preloved/requests', [PrelovedRequestController::class, 'store']);
+                Route::post('/jastip/listings', [JastipListingController::class, 'store']);
+                Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
+            });
+
+            Route::middleware('throttle:posting')->group(function () {
                 Route::match(['put', 'patch'], '/preloved/listings/{id}', [PrelovedListingController::class, 'update']);
                 Route::delete('/preloved/listings/{id}', [PrelovedListingController::class, 'destroy']);
 
-                Route::post('/preloved/requests', [PrelovedRequestController::class, 'store']);
                 Route::match(['put', 'patch'], '/preloved/requests/{id}', [PrelovedRequestController::class, 'update']);
                 Route::delete('/preloved/requests/{id}', [PrelovedRequestController::class, 'destroy']);
 
-                Route::post('/jastip/listings', [JastipListingController::class, 'store']);
                 Route::match(['put', 'patch'], '/jastip/listings/{id}', [JastipListingController::class, 'update']);
                 Route::delete('/jastip/listings/{id}', [JastipListingController::class, 'destroy']);
 
-                Route::post('/jastip/requests', [JastipRequestController::class, 'store']);
                 Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
                 Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
             });
@@ -89,4 +94,21 @@ Route::prefix('v1')->group(function () {
             Route::get('/me/preloved/requests', [UserActivityController::class, 'myPrelovedRequests']);
         });
     });
+
+    Route::prefix('admin')->group(function () {
+        
+        Route::middleware('throttle:auth')->group(function () {
+            Route::post('/login', [AdminAuthController::class, 'login']);
+        });
+
+        Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+            Route::post('/logout', [AdminAuthController::class, 'logout']);
+            
+            Route::get('/users', [AdminManagementController::class, 'getUsers']);
+            Route::patch('/users/{id}/tier', [AdminManagementController::class, 'updateUserTier']);
+            Route::post('/users/{id}/ban', [AdminManagementController::class, 'toggleBanUser']);
+            Route::delete('/items/{type}/{id}', [AdminManagementController::class, 'forceDeleteItem']);
+        });
+    });
+
 });

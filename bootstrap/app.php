@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
          
          $middleware->alias([
             'profile.completed' => \App\Http\Middleware\EnsureProfileCompleted::class,
+            'admin' => \App\Http\Middleware\IsAdmin::class,
+            'check.limit' => \App\Http\Middleware\CheckItemLimit::class,
+            'check.banned' => \App\Http\Middleware\CheckBanned::class,
          ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

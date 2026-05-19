@@ -320,12 +320,12 @@ class JastipListingApiTest extends TestCase
         $response->assertStatus(400);
     }
 
-    public function test_user_cannot_create_more_than_5_active_listings(): void
+    public function test_user_cannot_create_more_than_tier_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['tier' => 'basic']);
         $category = Category::factory()->create();
 
-        JastipListing::factory()->count(5)->create([
+        JastipListing::factory()->count(3)->create([
             'user_id' => $user->id,
             'status' => 'ACTIVE'
         ]);
@@ -341,7 +341,7 @@ class JastipListingApiTest extends TestCase
                 'images' => ['https://example.com/image.jpg']
             ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(403);
     }
 
     public function test_cannot_view_other_users_closed_listing(): void

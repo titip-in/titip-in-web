@@ -266,12 +266,12 @@ class PrelovedRequestApiTest extends TestCase
         $response->assertStatus(400);
     }
 
-    public function test_user_cannot_create_more_than_5_active_requests(): void
+    public function test_user_cannot_create_more_than_tier_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['tier' => 'basic']);
         $category = Category::factory()->create();
 
-        PrelovedRequest::factory()->count(5)->create([
+        PrelovedRequest::factory()->count(3)->create([
             'user_id' => $user->id,
             'status' => 'OPEN'
         ]);
@@ -284,7 +284,7 @@ class PrelovedRequestApiTest extends TestCase
                 'status' => 'OPEN',
             ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(403);
     }
 
     public function test_cannot_view_other_users_closed_request(): void

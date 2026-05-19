@@ -144,7 +144,7 @@ class UserController extends Controller
         $user = $request->user();
 
         if (empty($user->wa_number)) {
-            return $this->errorResponse('Nomor WhatsApp Anda kosong atau telah diklaim oleh akun lain. Silakan perbarui profil Anda.', 400);
+            return $this->errorResponse('Your WhatsApp number is empty or has been claimed by another account. Please update your profile.', 400);
         }
 
         if ($user->wa_verified_at !== null) {

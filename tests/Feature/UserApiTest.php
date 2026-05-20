@@ -84,4 +84,24 @@ class UserApiTest extends TestCase
         $response = $this->patchJson('/api/v1/me', ['name' => 'Hacker']);
         $response->assertStatus(401);
     }
+
+    public function test_user_can_soft_delete_own_account()
+    {
+        $user = User::factory()->create([
+            'email' => 'ahmad@example.com',
+            'wa_number' => '6281234567890'
+        ]);
+
+        $response = $this->actingAs($user)->deleteJson('/api/v1/me');
+
+        $response->assertStatus(200);
+
+        $this->assertSoftDeleted('users', [
+            'id' => $user->id,
+        ]);
+
+        $deletedUser = User::withTrashed()->find($user->id);
+        $this->assertStringContainsString('deleted_', $deletedUser->email);
+        $this->assertStringContainsString('deleted_', $deletedUser->wa_number);
+    }
 }

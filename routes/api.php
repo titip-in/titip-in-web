@@ -69,6 +69,7 @@ Route::prefix('v1')->group(function () {
             Route::match(['put', 'patch'], '/me', [UserController::class, 'update']);
             Route::put('/me/password', [UserController::class, 'changePassword']);
             Route::post('/me/whatsapp/verify-otp', [UserController::class, 'verifyWaOtp']);
+            Route::delete('/me', [UserController::class, 'deleteAccount']);
         });
 
         Route::middleware('profile.completed')->group(function () {
@@ -120,6 +121,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/users', [AdminManagementController::class, 'getUsers']);
             Route::patch('/users/{id}/tier', [AdminManagementController::class, 'updateUserTier']);
             Route::post('/users/{id}/ban', [AdminManagementController::class, 'toggleBanUser']);
+            Route::delete('/users/{id}', [AdminManagementController::class, 'deleteUser']);
 
             Route::get('/items/{type}', [AdminManagementController::class, 'getItems']);
             Route::get('/items/{type}/{id}', [AdminManagementController::class, 'getItemDetail']);

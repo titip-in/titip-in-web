@@ -22,7 +22,8 @@ class JastipListingController extends Controller
             'images'
         ])
         ->where('status', 'ACTIVE')
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
         
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
@@ -138,6 +139,12 @@ class JastipListingController extends Controller
                 return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $listing->created_at = now();
+            $listing->boosted_at = null;
+        }
+
+        $isClosing = $listing->status === 'ACTIVE' && $request->input('status') !== 'ACTIVE';
+        if ($isClosing) {
+            $listing->boosted_at = null;
         }
 
         $baseTime = $isReactivating ? now() : $listing->created_at;

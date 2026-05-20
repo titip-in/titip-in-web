@@ -21,7 +21,8 @@ class PrelovedRequestController extends Controller
             'category:id,name,icon'
         ])
         ->where('status', 'OPEN') 
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
 
         return $this->successResponse($items, 'Preloved request catalog retrieved successfully');
     }
@@ -113,6 +114,12 @@ class PrelovedRequestController extends Controller
                 return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $reqItem->created_at = now();
+            $reqItem->boosted_at = null;
+        }
+
+        $isClosing = $reqItem->status === 'OPEN' && $request->input('status') !== 'OPEN';
+        if ($isClosing) {
+            $reqItem->boosted_at = null;
         }
 
         $validated = $request->validate([

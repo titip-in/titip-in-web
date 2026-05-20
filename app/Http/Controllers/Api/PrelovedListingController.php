@@ -22,7 +22,8 @@ class PrelovedListingController extends Controller
             'images'
         ])
         ->where('status', 'AVAILABLE') 
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
         
         return $this->successResponse($items, 'Preloved listing catalog retrieved successfully');
     }
@@ -135,6 +136,12 @@ class PrelovedListingController extends Controller
                 return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $listing->created_at = now();
+            $listing->boosted_at = null;
+        }
+
+        $isClosing = $listing->status === 'AVAILABLE' && $request->input('status') !== 'AVAILABLE';
+        if ($isClosing) {
+            $listing->boosted_at = null;
         }
 
         $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;

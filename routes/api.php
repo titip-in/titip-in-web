@@ -15,7 +15,9 @@ use App\Http\Controllers\Api\UserActivityController;
 use App\Http\Controllers\Api\DownloadController;
 use App\Http\Controllers\Api\Admin\AdminAuthController;
 use App\Http\Controllers\Api\Admin\AdminManagementController;
-use \App\Http\Controllers\Api\BoostController;
+use App\Http\Controllers\Api\BoostController;
+use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\SubscriptionController;
 
 Route::prefix('v1')->group(function () {
 
@@ -57,6 +59,11 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::get('/me', [UserController::class, 'show']);
+
+        Route::post('/me/subscriptions/upgrade', [SubscriptionController::class, 'requestUpgrade']);
+        
+        Route::post('/items/{type}/{id}/click', [AnalyticsController::class, 'trackClick']);
+        Route::get('/me/analytics', [AnalyticsController::class, 'getDashboardAnalytics']);
 
         Route::middleware('throttle:posting')->group(function () {
             Route::match(['put', 'patch'], '/me', [UserController::class, 'update']);

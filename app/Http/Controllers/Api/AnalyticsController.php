@@ -40,11 +40,13 @@ class AnalyticsController extends Controller
 
         $allItems = collect();
         foreach ($relations as $relation => $type) {
-            $items = $user->$relation()->select('id', 'title')->get()->map(function ($item) use ($type) {
+            $items = $user->$relation()->select('id', 'title', 'views', 'clicks')->get()->map(function ($item) use ($type) {
                 return [
                     'id' => $item->id,
                     'title' => $item->title,
-                    'type' => $type
+                    'type' => $type,
+                    'db_views' => $item->views ?? 0,
+                    'db_clicks' => $item->clicks ?? 0
                 ];
             });
             $allItems = $allItems->concat($items);
@@ -57,8 +59,11 @@ class AnalyticsController extends Controller
         $maxInteraction = -1;
 
         foreach ($allItems as $item) {
-            $views = (int) Redis::get("views:{$item['type']}:{$item['id']}") ?: 0;
-            $clicks = (int) Redis::get("clicks:{$item['type']}:{$item['id']}") ?: 0;
+            $redisViews = (int) Redis::get("views:{$item['type']}:{$item['id']}");
+            $redisClicks = (int) Redis::get("clicks:{$item['type']}:{$item['id']}");
+
+            $views = $item['db_views'] + $redisViews;
+            $clicks = $item['db_clicks'] + $redisClicks;
 
             $totalViews += $views;
             $totalClicks += $clicks;

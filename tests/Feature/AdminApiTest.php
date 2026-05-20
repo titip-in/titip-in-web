@@ -202,4 +202,21 @@ class AdminApiTest extends TestCase
 
         $response->assertStatus(404);
     }
+
+    public function test_admin_can_force_delete_user()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        $user = User::factory()->create();
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->deleteJson("/api/v1/admin/users/{$user->id}");
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseMissing('users', [
+            'id' => $user->id,
+        ]);
+    }
 }

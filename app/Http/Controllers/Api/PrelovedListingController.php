@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class PrelovedListingController extends Controller
 {
@@ -105,6 +106,9 @@ class PrelovedListingController extends Controller
         if ($listing->status !== 'AVAILABLE' && $listing->user_id !== auth('sanctum')->id()) {
             return $this->errorResponse('This Preloved listing is not available and cannot be viewed by the public.', 403);
         }
+
+        $redisKey = "views:preloved_listing:{$id}";
+        Redis::incr($redisKey);
 
         return $this->successResponse($listing, 'Preloved listing detail retrieved successfully');
     }

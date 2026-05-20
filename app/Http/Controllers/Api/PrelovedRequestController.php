@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class PrelovedRequestController extends Controller
 {
@@ -83,6 +84,9 @@ class PrelovedRequestController extends Controller
         if ($reqItem->status !== 'OPEN' && $reqItem->user_id !== auth('sanctum')->id()) {
             return $this->errorResponse('This Preloved request is not open and cannot be viewed by the public.', 403);
         }
+
+        $redisKey = "views:preloved_request:{$id}";
+        Redis::incr($redisKey);
 
         return $this->successResponse($reqItem, 'Preloved request detail retrieved successfully');
     }

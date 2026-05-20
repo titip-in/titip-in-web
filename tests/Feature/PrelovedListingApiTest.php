@@ -174,7 +174,9 @@ class PrelovedListingApiTest extends TestCase
         
         $listing = PrelovedListing::factory()->create([
             'user_id' => $user->id,
-            'category_id' => $category->id
+            'category_id' => $category->id,
+            'status' => 'AVAILABLE',
+            'boosted_at' => now()
         ]);
 
         $response = $this->actingAs($user)
@@ -194,7 +196,8 @@ class PrelovedListingApiTest extends TestCase
             'id' => $listing->id,
             'title' => 'Updated Title',
             'price' => 7000000,
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 

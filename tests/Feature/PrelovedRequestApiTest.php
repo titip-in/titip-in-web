@@ -156,7 +156,11 @@ class PrelovedRequestApiTest extends TestCase
     public function test_authenticated_user_can_update_own_request(): void
     {
         $user = User::factory()->create();
-        $request = PrelovedRequest::factory()->create(['user_id' => $user->id]);
+        $request = PrelovedRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'OPEN',
+            'boosted_at' => now()
+        ]);
 
         $response = $this->actingAs($user)
             ->putJson("/api/v1/preloved/requests/{$request->id}", [
@@ -175,7 +179,8 @@ class PrelovedRequestApiTest extends TestCase
         $this->assertDatabaseHas('preloved_requests', [
             'id' => $request->id,
             'title' => 'Updated Request Title',
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 

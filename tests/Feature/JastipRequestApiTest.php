@@ -163,7 +163,11 @@ class JastipRequestApiTest extends TestCase
     public function test_authenticated_user_can_update_own_request(): void
     {
         $user = User::factory()->create();
-        $request = JastipRequest::factory()->create(['user_id' => $user->id]);
+        $request = JastipRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'OPEN',
+            'boosted_at' => now()
+        ]);
 
         $response = $this->actingAs($user)
             ->putJson("/api/v1/jastip/requests/{$request->id}", [
@@ -184,7 +188,8 @@ class JastipRequestApiTest extends TestCase
             'id' => $request->id,
             'title' => 'Updated Title Jastip',
             'from_loc' => 'Surabaya',
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 

@@ -205,7 +205,9 @@ class JastipListingApiTest extends TestCase
 
         $listing = JastipListing::factory()->create([
             'user_id' => $user->id,
-            'category_id' => $category->id
+            'category_id' => $category->id,
+            'status' => 'ACTIVE',
+            'boosted_at' => now()
         ]);
 
         $response = $this->actingAs($user)
@@ -229,7 +231,8 @@ class JastipListingApiTest extends TestCase
             'id' => $listing->id,
             'title' => 'Judul Baru Jastip',
             'from_loc' => 'Surabaya',
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 

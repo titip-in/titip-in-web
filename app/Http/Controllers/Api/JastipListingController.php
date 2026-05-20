@@ -18,7 +18,7 @@ class JastipListingController extends Controller
     public function index()
     {
         $items = JastipListing::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon',
             'images'
         ])
@@ -79,7 +79,7 @@ class JastipListingController extends Controller
         }
 
         $listing->load([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name',
             'images'
         ]);
@@ -97,7 +97,7 @@ class JastipListingController extends Controller
         }
 
         $listing = JastipListing::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon',
             'images'
         ])->find($id);

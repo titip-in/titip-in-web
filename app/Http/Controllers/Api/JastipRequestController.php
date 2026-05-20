@@ -18,7 +18,7 @@ class JastipRequestController extends Controller
     public function index()
     {
         $items = JastipRequest::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon'
         ])
         ->where('status', 'OPEN')
@@ -57,7 +57,7 @@ class JastipRequestController extends Controller
         $reqItem = JastipRequest::create($validated);
 
         $reqItem->load([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name'
         ]);
 
@@ -74,7 +74,7 @@ class JastipRequestController extends Controller
         }
 
         $reqItem = JastipRequest::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon'
         ])->find($id);
 

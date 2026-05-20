@@ -112,4 +112,38 @@ class AdminApiTest extends TestCase
             'id' => $listing->id
         ]);
     }
+
+    public function test_admin_can_get_all_items_by_type()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        JastipListing::factory()->count(3)->create();
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->getJson('/api/v1/admin/items/jastip_listing');
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure(['success', 'message', 'data']);
+        
+        $this->assertCount(3, $response->json('data'));
+    }
+
+    public function test_admin_can_filter_items_by_user_id()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        $userA = User::factory()->create();
+        $userB = User::factory()->create();
+
+        JastipListing::factory()->count(2)->create(['user_id' => $userA->id]);
+        JastipListing::factory()->count(1)->create(['user_id' => $userB->id]);
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->getJson("/api/v1/admin/items/jastip_listing?user_id={$userA->id}");
+
+        $response->assertStatus(200);
+        $this->assertCount(2, $response->json('data'));
+    }
 }

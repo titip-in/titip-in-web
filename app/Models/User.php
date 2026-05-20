@@ -12,7 +12,7 @@ use Laravel\Sanctum\HasApiTokens;
 use App\Enums\UserTier;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['name', 'email', 'password', 'wa_number', 'avatar_url', 'status', 'google_id', 'auth_provider', 'email_verified_at', 'wa_verified_at', 'tier', 'boost_quota', 'is_banned'])]
+#[Fillable(['name', 'email', 'password', 'wa_number', 'avatar_url', 'status', 'google_id', 'auth_provider', 'email_verified_at', 'wa_verified_at', 'tier', 'boost_quota', 'is_banned', 'tier_expired_at'])]
 #[Hidden(['password', 'remember_token', 'google_id'])]
 class User extends Authenticatable
 {

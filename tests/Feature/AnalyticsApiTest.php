@@ -147,4 +147,55 @@ class AnalyticsApiTest extends TestCase
 
         $response->assertJsonMissing(['views' => 1]);
     }
+
+    public function test_analytics_calculates_hybrid_data_correctly()
+    {
+        $user = User::factory()->create(['tier' => 'pro']);
+        $category = Category::factory()->create();
+        
+        $listing = JastipListing::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'views' => 10,
+            'clicks' => 5
+        ]);
+
+        Redis::set("views:jastip_listing:{$listing->id}", 5);
+        Redis::set("clicks:jastip_listing:{$listing->id}", 2);
+
+        $response = $this->actingAs($user)->getJson('/api/v1/me/analytics');
+
+        $response->assertStatus(200)
+                 ->assertJsonPath('data.total_views', 15)
+                 ->assertJsonPath('data.total_clicks', 7)
+                 ->assertJsonPath('data.item_details.0.views', 15)
+                 ->assertJsonPath('data.item_details.0.clicks', 7);
+    }
+
+    public function test_sync_command_moves_redis_data_to_database_and_clears_redis()
+    {
+        $user = User::factory()->create();
+        $category = Category::factory()->create();
+        
+        $listing = JastipListing::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'views' => 100,
+            'clicks' => 50
+        ]);
+
+        Redis::set("views:jastip_listing:{$listing->id}", 20);
+        Redis::set("clicks:jastip_listing:{$listing->id}", 10);
+
+        $this->artisan('analytics:sync')->assertSuccessful();
+
+        $this->assertDatabaseHas('jastip_listings', [
+            'id' => $listing->id,
+            'views' => 120,
+            'clicks' => 60
+        ]);
+
+        $this->assertNull(Redis::get("views:jastip_listing:{$listing->id}"));
+        $this->assertNull(Redis::get("clicks:jastip_listing:{$listing->id}"));
+    }
 }

@@ -163,7 +163,11 @@ class JastipRequestApiTest extends TestCase
     public function test_authenticated_user_can_update_own_request(): void
     {
         $user = User::factory()->create();
-        $request = JastipRequest::factory()->create(['user_id' => $user->id]);
+        $request = JastipRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'OPEN',
+            'boosted_at' => now()
+        ]);
 
         $response = $this->actingAs($user)
             ->putJson("/api/v1/jastip/requests/{$request->id}", [
@@ -184,7 +188,8 @@ class JastipRequestApiTest extends TestCase
             'id' => $request->id,
             'title' => 'Updated Title Jastip',
             'from_loc' => 'Surabaya',
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 
@@ -272,12 +277,12 @@ class JastipRequestApiTest extends TestCase
         $response->assertStatus(400);
     }
 
-    public function test_user_cannot_create_more_than_5_active_requests(): void
+    public function test_user_cannot_create_more_than_tier_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['tier' => 'basic']);
         $category = Category::factory()->create();
 
-        JastipRequest::factory()->count(5)->create([
+        JastipRequest::factory()->count(3)->create([
             'user_id' => $user->id,
             'status' => 'OPEN'
         ]);
@@ -285,13 +290,13 @@ class JastipRequestApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/requests', [
                 'category_id' => $category->id,
-                'title' => 'Request ke 6',
+                'title' => 'Request Barang Ke-4',
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'status' => 'OPEN',
             ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(403);
     }
 
     public function test_cannot_view_other_users_closed_request(): void

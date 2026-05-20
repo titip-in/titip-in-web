@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Redis;
 use App\Mail\VerifyEmailMail;
 use App\Mail\ResetPasswordMail;
 use Laravel\Socialite\Facades\Socialite;
+use App\Enums\UserTier;
 
 class AuthController extends Controller
 {
@@ -73,6 +74,9 @@ class AuthController extends Controller
                 'wa_number' => $validated['wa_number'] ?? $user->wa_number,
                 'auth_provider' => 'local',
                 'google_id' => null,
+                'is_banned' => false,
+                'tier' => UserTier::BASIC,
+                'boost_quota' => 0,
             ]);
             
         } else {
@@ -191,6 +195,11 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $request->email)->firstOrFail();
+
+        if ($user->is_banned) {
+            return $this->errorResponse('Your account has been banned. Please contact support.', 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         $data = [
@@ -223,6 +232,10 @@ class AuthController extends Controller
 
         if (!$user) {
             return $this->successResponse(null, 'If your email is registered, you will receive a password reset link.');
+        }
+
+        if ($user->is_banned) {
+            return $this->errorResponse('Action not allowed for banned accounts.', 403);
         }
 
         $oldToken = Redis::get("user_password_reset:{$user->id}");
@@ -326,6 +339,9 @@ class AuthController extends Controller
                         'auth_provider' => 'google',
                         'password' => null,
                         'email_verified_at' => now(),
+                        'is_banned' => false,
+                        'tier' => UserTier::BASIC,
+                        'boost_quota' => 0,
                     ]);
 
                     $user = $existingUser;
@@ -342,6 +358,11 @@ class AuthController extends Controller
                     'email_verified_at' => now(),
                 ]);
             }
+        }
+
+        if ($user->is_banned) {
+            $frontendLoginUrl = env('FRONTEND_URL') . '/login?error=account_banned';
+            return redirect()->away($frontendLoginUrl);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;

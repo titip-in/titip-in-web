@@ -9,8 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Enums\UserTier;
 
-#[Fillable(['name', 'email', 'password', 'wa_number', 'avatar_url', 'status', 'google_id', 'auth_provider', 'email_verified_at', 'wa_verified_at'])]
+#[Fillable(['name', 'email', 'password', 'wa_number', 'avatar_url', 'status', 'google_id', 'auth_provider', 'email_verified_at', 'wa_verified_at', 'tier', 'boost_quota', 'is_banned'])]
 #[Hidden(['password', 'remember_token', 'google_id'])]
 class User extends Authenticatable
 {
@@ -28,6 +29,9 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'wa_verified_at' => 'datetime',
             'password' => 'hashed',
+            'tier' => UserTier::class,
+            'is_banned' => 'boolean',
+            'tier_expired_at' => 'datetime',
         ];
     }
 
@@ -49,5 +53,27 @@ class User extends Authenticatable
     public function prelovedRequests()
     {
         return $this->hasMany(PrelovedRequest::class);
+    }
+
+    public function totalActiveItems(): int
+    {
+        return $this->jastipListings()->where('status', 'ACTIVE')->count() +
+               $this->jastipRequests()->where('status', 'OPEN')->count() +
+               $this->prelovedListings()->where('status', 'AVAILABLE')->count() +
+               $this->prelovedRequests()->where('status', 'OPEN')->count();
+    }
+
+    public function getMaxItemLimit(): int
+    {
+        return match($this->tier) {
+            UserTier::BASIC => 3,
+            UserTier::PLUS => 10,
+            UserTier::PRO => 20,
+        };
+    }
+
+    public function canAddItem(): bool
+    {
+        return $this->totalActiveItems() < $this->getMaxItemLimit();
     }
 }

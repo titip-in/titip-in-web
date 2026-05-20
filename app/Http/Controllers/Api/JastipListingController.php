@@ -22,7 +22,8 @@ class JastipListingController extends Controller
             'images'
         ])
         ->where('status', 'ACTIVE')
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
         
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
@@ -32,10 +33,7 @@ class JastipListingController extends Controller
      */
     public function store(Request $request)
     {
-        $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
-        if ($activeCount >= 5) {
-            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip listings.', 400);
-        }
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
@@ -45,11 +43,13 @@ class JastipListingController extends Controller
             'to_loc' => 'required|string|max:255',
             'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
             'status' => 'nullable|in:ACTIVE,CLOSED',
-            'images' => 'required|array|min:1',
+            'images' => 'required|array|min:1|max:' . $maxImages,
             'images.*' => 'required|url',
             'primary_image_url' => 'nullable|url',
             'lat' => 'nullable|numeric',
             'lng' => 'nullable|numeric'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
 
         $images = $request->input('images', []);
@@ -133,15 +133,24 @@ class JastipListingController extends Controller
 
         $isReactivating = $listing->status !== 'ACTIVE' && $request->input('status') === 'ACTIVE';
         if ($isReactivating) {
-            $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
-            if ($activeCount >= 5) {
-                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip listings.', 400);
+            if (!$request->user()->canAddItem()) {
+                $maxLimit = $request->user()->getMaxItemLimit();
+                $tierName = strtoupper($request->user()->tier->value);
+                return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $listing->created_at = now();
+            $listing->boosted_at = null;
+        }
+
+        $isClosing = $listing->status === 'ACTIVE' && $request->input('status') !== 'ACTIVE';
+        if ($isClosing) {
+            $listing->boosted_at = null;
         }
 
         $baseTime = $isReactivating ? now() : $listing->created_at;
         $maxDeadline = $baseTime->copy()->addHours(24)->toDateTimeString();
+        
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
@@ -151,11 +160,13 @@ class JastipListingController extends Controller
             'to_loc' => 'sometimes|required|string|max:255',
             'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
             'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
-            'images' => 'sometimes|required|array|min:1',
+            'images' => 'sometimes|required|array|min:1|max:' . $maxImages,
             'images.*' => 'required|url',
             'primary_image_url' => 'sometimes|nullable|url',
             'lat' => 'sometimes|nullable|numeric',
             'lng' => 'sometimes|nullable|numeric'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
 
         if (isset($validated['from_loc']) || isset($validated['to_loc']) || isset($validated['category_id']) || isset($validated['title']) || isset($validated['description'])) {

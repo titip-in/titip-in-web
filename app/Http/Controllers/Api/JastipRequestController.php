@@ -20,8 +20,9 @@ class JastipRequestController extends Controller
             'user:id,name,wa_number,avatar_url,status',
             'category:id,name,icon'
         ])
-        ->where('status', 'OPEN') 
-        ->latest()->get();
+        ->where('status', 'OPEN')
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
 
         return $this->successResponse($items, 'Jastip request catalog retrieved successfully');
     }
@@ -31,11 +32,6 @@ class JastipRequestController extends Controller
      */
     public function store(Request $request)
     {
-        $activeCount = JastipRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
-        if ($activeCount >= 5) {
-            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip requests.', 400);
-        }
-
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
             'title' => 'required|string|max:255',
@@ -113,11 +109,18 @@ class JastipRequestController extends Controller
 
         $isReactivating = $reqItem->status !== 'OPEN' && $request->input('status') === 'OPEN';
         if ($isReactivating) {
-            $activeCount = JastipRequest::where('user_id', $request->user()->id)->where('status', 'OPEN')->count();
-            if ($activeCount >= 5) {
-                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip requests.', 400);
+            if (!$request->user()->canAddItem()) {
+                $maxLimit = $request->user()->getMaxItemLimit();
+                $tierName = strtoupper($request->user()->tier->value);
+                return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $reqItem->created_at = now();
+            $reqItem->boosted_at = null;
+        }
+
+        $isClosing = $reqItem->status === 'OPEN' && $request->input('status') !== 'OPEN';
+        if ($isClosing) {
+            $reqItem->boosted_at = null;
         }
 
         $validated = $request->validate([

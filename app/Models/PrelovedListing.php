@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['user_id', 'category_id', 'title', 'description', 'price', 'condition', 'status', 'embedding'])]
+#[Fillable(['user_id', 'category_id', 'title', 'description', 'price', 'condition', 'status', 'embedding', 'boosted_at'])]
 class PrelovedListing extends Model
 {
     use HasUuids, HasFactory;

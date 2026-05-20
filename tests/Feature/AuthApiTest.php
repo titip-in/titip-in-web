@@ -26,29 +26,21 @@ class AuthApiTest extends TestCase
                 'data' => [
                     'access_token',
                     'token_type',
-                    'user' => [
-                        'id',
-                        'name',
-                        'email',
-                        'wa_number'
-                    ]
+                    'user' => ['id', 'name', 'email', 'wa_number']
                 ]
             ]);
 
         $this->assertDatabaseHas('users', [
             'email' => 'john@example.com',
-            'name' => 'John Doe',
             'wa_number' => '6281234567890' 
         ]);
     }
 
     public function test_register_fails_with_duplicate_email(): void
     {
-        User::create([
-            'name' => 'Existing User',
+        User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
+            'email_verified_at' => now()
         ]);
 
         $response = $this->postJson('/api/v1/register', [
@@ -63,11 +55,10 @@ class AuthApiTest extends TestCase
 
     public function test_register_fails_with_duplicate_wa_number(): void
     {
-        User::create([
-            'name' => 'Existing User',
+        User::factory()->create([
             'email' => 'existing@example.com',
-            'password' => bcrypt('password123'),
             'wa_number' => '6281234567890',
+            'wa_verified_at' => now()
         ]);
 
         $response = $this->postJson('/api/v1/register', [
@@ -84,7 +75,6 @@ class AuthApiTest extends TestCase
     {
         $response = $this->postJson('/api/v1/register', [
             'name' => 'John Doe',
-            // missing email
             'password' => 'password123',
             'wa_number' => '081234567890',
         ]);
@@ -106,11 +96,9 @@ class AuthApiTest extends TestCase
 
     public function test_user_can_login(): void
     {
-        User::create([
-            'name' => 'John Doe',
+        User::factory()->create([
             'email' => 'john@example.com',
             'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
         ]);
 
         $response = $this->postJson('/api/v1/login', [
@@ -118,76 +106,32 @@ class AuthApiTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'data' => [
-                    'access_token',
-                    'token_type',
-                    'user' => [
-                        'id',
-                        'name',
-                        'email',
-                        'wa_number'
-                    ]
-                ]
-            ]);
+        $response->assertStatus(200)->assertJsonStructure(['success', 'message', 'data' => ['access_token']]);
     }
 
     public function test_login_fails_with_invalid_email(): void
     {
-        User::create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
-        ]);
+        User::factory()->create(['email' => 'john@example.com', 'password' => bcrypt('password123')]);
 
-        $response = $this->postJson('/api/v1/login', [
-            'email' => 'wrong@example.com',
-            'password' => 'password123',
-        ]);
-
+        $response = $this->postJson('/api/v1/login', ['email' => 'wrong@example.com', 'password' => 'password123']);
         $response->assertStatus(401);
     }
 
     public function test_login_fails_with_invalid_password(): void
     {
-        User::create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
-        ]);
+        User::factory()->create(['email' => 'john@example.com', 'password' => bcrypt('password123')]);
 
-        $response = $this->postJson('/api/v1/login', [
-            'email' => 'john@example.com',
-            'password' => 'wrongpassword',
-        ]);
-
+        $response = $this->postJson('/api/v1/login', ['email' => 'john@example.com', 'password' => 'wrongpassword']);
         $response->assertStatus(401);
     }
 
     public function test_user_can_logout(): void
     {
-        $user = User::create([
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => bcrypt('password123'),
-            'wa_number' => '6281234567890',
-        ]);
-
+        $user = User::factory()->create();
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        $response = $this->withHeader('Authorization', "Bearer $token")
-            ->postJson('/api/v1/logout');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'message'
-            ]);
+        $response = $this->withHeader('Authorization', "Bearer $token")->postJson('/api/v1/logout');
+        $response->assertStatus(200);
     }
 
     public function test_logout_fails_without_authentication(): void

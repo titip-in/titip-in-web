@@ -10,13 +10,14 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Enums\UserTier;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['name', 'email', 'password', 'wa_number', 'avatar_url', 'status', 'google_id', 'auth_provider', 'email_verified_at', 'wa_verified_at', 'tier', 'boost_quota', 'is_banned'])]
 #[Hidden(['password', 'remember_token', 'google_id'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * Get the attributes that should be cast.

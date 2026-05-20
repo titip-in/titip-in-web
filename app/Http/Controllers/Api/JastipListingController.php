@@ -8,6 +8,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class JastipListingController extends Controller
 {
@@ -108,6 +109,9 @@ class JastipListingController extends Controller
         if ($listing->status !== 'ACTIVE' && $listing->user_id !== auth('sanctum')->id()) {
             return $this->errorResponse('This Jastip listing is not active and cannot be viewed by the public.', 403);
         }
+
+        $redisKey = "views:jastip_listing:{$id}";
+        Redis::incr($redisKey);
 
         return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
     }

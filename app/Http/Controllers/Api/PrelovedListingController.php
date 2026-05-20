@@ -18,7 +18,7 @@ class PrelovedListingController extends Controller
     public function index()
     {
         $items = PrelovedListing::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon',
             'images'
         ])
@@ -76,7 +76,7 @@ class PrelovedListingController extends Controller
         }
 
         $listing->load([
-            'user:id,name,wa_number,avatar_url,status', 
+            'user:id,name,wa_number,avatar_url,status,tier', 
             'category:id,name',
             'images'
         ]);
@@ -94,7 +94,7 @@ class PrelovedListingController extends Controller
         }
 
         $listing = PrelovedListing::with([
-            'user:id,name,wa_number,avatar_url,status',
+            'user:id,name,wa_number,avatar_url,status,tier',
             'category:id,name,icon',
             'images'
         ])->find($id);

@@ -24,6 +24,17 @@ class WhatsAppService
         
         $message = "Halo,\n\nBerikut adalah kode OTP untuk verifikasi nomor WhatsApp Anda di Titipin.me:\n\n*{$otpCode}*\n\nKode ini hanya berlaku selama 5 menit. Demi keamanan akun Anda, mohon untuk tidak membagikan kode ini kepada siapa pun.";
 
+        return $this->executeRequest($endpoint, $waNumber, $message);
+    }
+
+    public function sendMessage(string $waNumber, string $message): bool
+    {
+        $endpoint = "{$this->apiUrl}/message/sendText/{$this->instanceName}";
+        return $this->executeRequest($endpoint, $waNumber, $message);
+    }
+
+    private function executeRequest(string $endpoint, string $waNumber, string $message): bool
+    {
         try {
             $response = Http::withHeaders([
                 'apikey' => $this->apiKey,

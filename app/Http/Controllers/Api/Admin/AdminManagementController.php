@@ -155,4 +155,21 @@ class AdminManagementController extends Controller
 
         return $this->successResponse($item, "Successfully retrieved {$type} detail for admin.");
     }
+
+    public function deleteUser(Request $request, string $id)
+    {
+        $user = User::withTrashed()->find($id);
+
+        if (!$user) {
+            return $this->errorResponse('User not found.', 404);
+        }
+
+        if ($user->id === $request->user()->id) {
+            return $this->errorResponse('You cannot delete your own admin account.', 400);
+        }
+
+        $user->forceDelete();
+
+        return $this->successResponse(null, 'User account has been permanently force-deleted from the database.');
+    }
 }

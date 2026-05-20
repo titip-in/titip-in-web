@@ -127,4 +127,32 @@ class AdminManagementController extends Controller
 
         return $this->successResponse($items, "Successfully retrieved {$type} data for admin.");
     }
+
+    public function getItemDetail(string $type, string $id)
+    {
+        $models = [
+            'jastip_listing' => JastipListing::class,
+            'jastip_request' => JastipRequest::class,
+            'preloved_listing' => PrelovedListing::class,
+            'preloved_request' => PrelovedRequest::class,
+        ];
+
+        if (!array_key_exists($type, $models)) {
+            return $this->errorResponse('Invalid item type.', 400);
+        }
+
+        $modelClass = $models[$type];
+
+        $item = $modelClass::with([
+            'user:id,name,email,wa_number,is_banned,avatar_url',
+            'category:id,name',
+            ...((str_contains($type, 'listing')) ? ['images'] : [])
+        ])->find($id);
+
+        if (!$item) {
+            return $this->errorResponse('Item not found', 404);
+        }
+
+        return $this->successResponse($item, "Successfully retrieved {$type} detail for admin.");
+    }
 }

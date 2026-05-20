@@ -115,6 +115,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/users/{id}/ban', [AdminManagementController::class, 'toggleBanUser']);
 
             Route::get('/items/{type}', [AdminManagementController::class, 'getItems']);
+            Route::get('/items/{type}/{id}', [AdminManagementController::class, 'getItemDetail']);
             Route::delete('/items/{type}/{id}', [AdminManagementController::class, 'forceDeleteItem']);
         });
     });

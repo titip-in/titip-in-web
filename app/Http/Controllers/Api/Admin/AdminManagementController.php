@@ -23,7 +23,7 @@ class AdminManagementController extends Controller
         return $this->successResponse($users, 'User list retrieved successfully.');
     }
 
-    public function updateUserTier(Request $request, $id)
+    public function updateUserTier(Request $request, string $id)
     {
         $user = User::find($id);
 
@@ -53,7 +53,7 @@ class AdminManagementController extends Controller
         return $this->successResponse($user, "User tier successfully updated to {$newTier->value}.");
     }
 
-    public function toggleBanUser($id)
+    public function toggleBanUser(string $id)
     {
         $user = User::find($id);
 
@@ -72,7 +72,7 @@ class AdminManagementController extends Controller
         return $this->successResponse(['is_banned' => $user->is_banned], "User account has been successfully {$status}.");
     }
 
-    public function forceDeleteItem(Request $request, $type, $id)
+    public function forceDeleteItem(Request $request, string $type, string $id)
     {
         $validTypes = ['jastip_listing', 'jastip_request', 'preloved_listing', 'preloved_request'];
         if (!in_array($type, $validTypes)) {
@@ -97,5 +97,34 @@ class AdminManagementController extends Controller
         $item->delete();
 
         return $this->successResponse(null, "Item ({$type}) successfully force deleted by Admin.");
+    }
+
+    public function getItems(Request $request, string $type)
+    {
+        $models = [
+            'jastip_listing' => JastipListing::class,
+            'jastip_request' => JastipRequest::class,
+            'preloved_listing' => PrelovedListing::class,
+            'preloved_request' => PrelovedRequest::class,
+        ];
+
+        if (!array_key_exists($type, $models)) {
+            return $this->errorResponse('Invalid item type. Valid types are: jastip_listing, jastip_request, preloved_listing, preloved_request', 400);
+        }
+
+        $modelClass = $models[$type];
+
+        $query = $modelClass::with([
+            'user:id,name,email,wa_number,is_banned',
+            'category:id,name'
+        ]);
+
+        if ($request->has('user_id')) {
+            $query->where('user_id', $request->query('user_id'));
+        }
+
+        $items = $query->latest()->get();
+
+        return $this->successResponse($items, "Successfully retrieved {$type} data for admin.");
     }
 }

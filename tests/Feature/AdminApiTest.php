@@ -146,4 +146,54 @@ class AdminApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertCount(2, $response->json('data'));
     }
+
+    public function test_admin_can_get_item_detail()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        $listing = JastipListing::factory()->create();
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->getJson("/api/v1/admin/items/jastip_listing/{$listing->id}");
+
+        $response->assertStatus(200)
+                 ->assertJsonStructure([
+                     'success',
+                     'message',
+                     'data' => [
+                         'id',
+                         'user_id',
+                         'title',
+                         'user' => ['id', 'name', 'email', 'wa_number', 'is_banned', 'avatar_url'],
+                         'category' => ['id', 'name'],
+                         'images'
+                     ]
+                 ])
+                 ->assertJsonPath('data.id', $listing->id);
+    }
+
+    public function test_admin_get_item_detail_fails_with_invalid_type()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        $listing = JastipListing::factory()->create();
+
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->getJson("/api/v1/admin/items/tipe_ngasal/{$listing->id}");
+
+        $response->assertStatus(400);
+    }
+
+    public function test_admin_get_item_detail_fails_with_not_found()
+    {
+        $admin = Admin::first();
+        $token = $admin->createToken('admin_token')->plainTextToken;
+        
+        $response = $this->withHeader('Authorization', "Bearer $token")
+                         ->getJson("/api/v1/admin/items/jastip_listing/550e8400-e29b-41d4-a716-446655440000");
+
+        $response->assertStatus(404);
+    }
 }

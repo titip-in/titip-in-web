@@ -164,4 +164,24 @@ class UserController extends Controller
 
         return $this->successResponse(null, 'WhatsApp number verified successfully.');
     }
+
+    public function deleteAccount(Request $request)
+    {
+        $user = $request->user();
+
+        $timestamp = time();
+        $user->email = "deleted_{$timestamp}_{$user->email}";
+        
+        if ($user->wa_number) {
+            $user->wa_number = "deleted_{$timestamp}_{$user->wa_number}";
+        }
+        
+        $user->save();
+
+        $user->tokens()->delete();
+
+        $user->delete();
+
+        return $this->successResponse(null, 'Your account has been successfully deleted.');
+    }
 }

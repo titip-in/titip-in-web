@@ -32,10 +32,10 @@ class PrelovedListingApiTest extends TestCase
                         'description',
                         'price',
                         'condition',
-                        'image_url',
                         'status',
                         'user',
-                        'category'
+                        'category',
+                        'images'
                     ]
                 ]
             ]);
@@ -57,11 +57,13 @@ class PrelovedListingApiTest extends TestCase
                     'user_id',
                     'category_id',
                     'title',
+                    'description', 
                     'price',
                     'condition',
                     'status',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ])
             ->assertJsonPath('data.id', $listing->id);
@@ -70,14 +72,12 @@ class PrelovedListingApiTest extends TestCase
     public function test_get_listing_fails_with_invalid_uuid(): void
     {
         $response = $this->getJson('/api/v1/preloved/listings/not-a-uuid');
-
         $response->assertStatus(400);
     }
 
     public function test_get_listing_fails_with_nonexistent_id(): void
     {
         $response = $this->getJson('/api/v1/preloved/listings/550e8400-e29b-41d4-a716-446655440000');
-
         $response->assertStatus(404);
     }
 
@@ -93,14 +93,15 @@ class PrelovedListingApiTest extends TestCase
                 'description' => 'Good condition',
                 'price' => 8000000,
                 'condition' => 'GOOD',
-                'image_url' => 'https://example.com/image.jpg',
+                'images' => ['https://example.com/image.jpg'],
                 'status' => 'AVAILABLE',
             ]);
 
+        if ($response->status() !== 201) $response->dump();
+
         $response->assertStatus(201)
             ->assertJsonStructure([
-                'success',
-                'message',
+                'success', 'message',
                 'data' => [
                     'id',
                     'user_id',
@@ -110,7 +111,8 @@ class PrelovedListingApiTest extends TestCase
                     'condition',
                     'status',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ]);
 
@@ -147,6 +149,7 @@ class PrelovedListingApiTest extends TestCase
                 'description' => 'Good condition',
                 'price' => 8000000,
                 'condition' => 'INVALID',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -159,7 +162,6 @@ class PrelovedListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/preloved/listings', [
                 'title' => 'Used iPhone 12',
-                // missing price and condition
             ]);
 
         $response->assertStatus(422);
@@ -168,7 +170,14 @@ class PrelovedListingApiTest extends TestCase
     public function test_authenticated_user_can_update_own_listing(): void
     {
         $user = User::factory()->create();
-        $listing = PrelovedListing::factory()->create(['user_id' => $user->id]);
+        $category = Category::factory()->create(); 
+        
+        $listing = PrelovedListing::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'status' => 'AVAILABLE',
+            'boosted_at' => now()
+        ]);
 
         $response = $this->actingAs($user)
             ->putJson("/api/v1/preloved/listings/{$listing->id}", [
@@ -178,18 +187,17 @@ class PrelovedListingApiTest extends TestCase
                 'status' => 'CLOSED',
             ]);
 
+        if ($response->status() !== 200) $response->dump();
+
         $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'message',
-                'data'
-            ]);
+            ->assertJsonStructure(['success', 'message', 'data']);
 
         $this->assertDatabaseHas('preloved_listings', [
             'id' => $listing->id,
             'title' => 'Updated Title',
             'price' => 7000000,
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 
@@ -239,10 +247,7 @@ class PrelovedListingApiTest extends TestCase
             ->deleteJson("/api/v1/preloved/listings/{$listing->id}");
 
         $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'message'
-            ]);
+            ->assertJsonStructure(['success', 'message']);
 
         $this->assertDatabaseMissing('preloved_listings', [
             'id' => $listing->id
@@ -280,12 +285,12 @@ class PrelovedListingApiTest extends TestCase
         $response->assertStatus(400);
     }
 
-    public function test_user_cannot_create_more_than_5_active_listings(): void
+    public function test_user_cannot_create_more_than_tier_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['tier' => 'basic']);
         $category = Category::factory()->create();
 
-        PrelovedListing::factory()->count(5)->create([
+        PrelovedListing::factory()->count(3)->create([
             'user_id' => $user->id,
             'status' => 'AVAILABLE'
         ]);
@@ -297,9 +302,10 @@ class PrelovedListingApiTest extends TestCase
                 'price' => 8000000,
                 'condition' => 'GOOD',
                 'status' => 'AVAILABLE',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(403);
     }
 
     public function test_cannot_view_other_users_closed_listing(): void

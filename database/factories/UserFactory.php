@@ -24,14 +24,21 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $name = fake()->name();
         return [
-            'name' => fake()->name(),
+            'name' => $name,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'wa_number' => fake()->unique()->phoneNumber(),
-            'avatar_url' => null,
+            'wa_number' => '628' . fake()->unique()->numerify('##########'),
+            'wa_verified_at' => now(),
+            'avatar_url' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random',
+            'status' => fake()->randomElement(['Mahasiswa FILKOM UB', 'Asprak BasDat', 'Anak Kos Suhat', 'Pejuang Skripsi', 'Tukang Ngoding', null]),
+            'tier' => 'basic',
+            'boost_quota' => 0,
+            'is_banned' => false,
+            'tier_expired_at' => null,
         ];
     }
 

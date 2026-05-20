@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\PrelovedListing;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class PrelovedListingController extends Controller
 {
@@ -16,11 +18,13 @@ class PrelovedListingController extends Controller
     public function index()
     {
         $items = PrelovedListing::with([
-            'user:id,name,wa_number',
-            'category:id,name,icon'
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name,icon',
+            'images'
         ])
         ->where('status', 'AVAILABLE') 
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
         
         return $this->successResponse($items, 'Preloved listing catalog retrieved successfully');
     }
@@ -30,10 +34,7 @@ class PrelovedListingController extends Controller
      */
     public function store(Request $request)
     {
-        $activeCount = PrelovedListing::where('user_id', $request->user()->id)->where('status', 'AVAILABLE')->count();
-        if ($activeCount >= 5) {
-            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Preloved listings.', 400);
-        }
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
@@ -41,25 +42,43 @@ class PrelovedListingController extends Controller
             'description' => 'nullable|string',
             'price' => 'required|integer|min:0',
             'condition' => 'required|in:NEW,LIKE_NEW,GOOD,FAIR',
-            'image_url' => 'nullable|string',
+            'images' => 'required|array|min:1|max:' . $maxImages,
+            'images.*' => 'required|url',
+            'primary_image_url' => 'nullable|url',
             'status' => 'nullable|in:AVAILABLE,SOLD,CLOSED'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
+
+        $images = $request->input('images', []);
+        $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+        unset($validated['images'], $validated['primary_image_url']);
 
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $textToEmbed = $validated['title'] . ' ' . ($validated['description'] ?? '');
+            $categoryName = Category::find($validated['category_id'])?->name ?? '';
+            $textToEmbed = trim($categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? ''));
+            
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to generate embedding for Preloved: ' . $e->getMessage());
         }
 
         $listing = PrelovedListing::create($validated);
 
+        foreach ($images as $url) {
+            $listing->images()->create([
+                'image_url' => $url,
+                'is_primary' => $url === $primaryUrl,
+            ]);
+        }
+
         $listing->load([
-            'user:id,name,wa_number', 
-            'category:id,name'
+            'user:id,name,wa_number,avatar_url,status', 
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Preloved listing posted successfully', 201);
@@ -75,17 +94,21 @@ class PrelovedListingController extends Controller
         }
 
         $listing = PrelovedListing::with([
-            'user:id,name,wa_number',
-            'category:id,name,icon'
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name,icon',
+            'images'
         ])->find($id);
 
         if (!$listing) {
             return $this->errorResponse('Preloved listing not found', 404);
         }
 
-        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
-            return $this->errorResponse('This Preloved listing is closed and cannot be viewed by the public.', 403);
+        if ($listing->status !== 'AVAILABLE' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Preloved listing is not available and cannot be viewed by the public.', 403);
         }
+
+        $redisKey = "views:preloved_listing:{$id}";
+        Redis::incr($redisKey);
 
         return $this->successResponse($listing, 'Preloved listing detail retrieved successfully');
     }
@@ -109,14 +132,23 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
-        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'AVAILABLE';
+        $isReactivating = $listing->status !== 'AVAILABLE' && $request->input('status') === 'AVAILABLE';
         if ($isReactivating) {
-            $activeCount = PrelovedListing::where('user_id', $request->user()->id)->where('status', 'AVAILABLE')->count();
-            if ($activeCount >= 5) {
-                return $this->errorResponse('Failed to reactivate. You already have 5 active Preloved listings.', 400);
+            if (!$request->user()->canAddItem('preloved_listing')) {
+                $maxLimit = $request->user()->getMaxItemLimit();
+                $tierName = strtoupper($request->user()->tier->value);
+                return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $listing->created_at = now();
+            $listing->boosted_at = null;
         }
+
+        $isClosing = $listing->status === 'AVAILABLE' && $request->input('status') !== 'AVAILABLE';
+        if ($isClosing) {
+            $listing->boosted_at = null;
+        }
+
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
@@ -124,28 +156,61 @@ class PrelovedListingController extends Controller
             'description' => 'sometimes|nullable|string',
             'price' => 'sometimes|required|integer|min:0',
             'condition' => 'sometimes|required|in:NEW,LIKE_NEW,GOOD,FAIR',
-            'image_url' => 'sometimes|nullable|string',
+            'images' => 'sometimes|required|array|min:1|max:' . $maxImages,
+            'images.*' => 'required|url',
+            'primary_image_url' => 'sometimes|nullable|url',
             'status' => 'sometimes|nullable|in:AVAILABLE,SOLD,CLOSED'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
 
-        if (isset($validated['title']) || isset($validated['description'])) {
+        if (isset($validated['title']) || isset($validated['description']) || isset($validated['category_id'])) {
             try {
                 $newTitle = $validated['title'] ?? $listing->title;
                 $newDesc = $validated['description'] ?? $listing->description;
+                $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $textToEmbed = $newTitle . ' ' . $newDesc;
+                $categoryName = Category::find($newCatId)?->name ?? '';
+                $textToEmbed = trim($categoryName . ' - ' . $newTitle . ' ' . $newDesc);
+                
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Failed to update embedding for Preloved: ' . $e->getMessage());
             }
+        }
+
+        if ($request->has('images')) {
+            $images = $request->input('images');
+            $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+            unset($validated['images'], $validated['primary_image_url']);
+
+            $listing->images()->delete(); 
+            foreach ($images as $url) {
+                $listing->images()->create([
+                    'image_url' => $url,
+                    'is_primary' => $url === $primaryUrl,
+                ]);
+            }
+        }
+
+        if ($request->has('primary_image_url') && !$request->has('images')) {
+            $newPrimaryUrl = $request->input('primary_image_url');
+            
+            if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
+                $listing->images()->update(['is_primary' => false]);
+                $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
+            }
+
+            unset($validated['primary_image_url']);
         }
 
         $listing->update($validated);
         
         $listing->load([
-            'user:id,name,wa_number',
-            'category:id,name'
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Preloved listing updated successfully');
@@ -170,6 +235,7 @@ class PrelovedListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $listing->images()->delete();
         $listing->delete();
 
         return $this->successResponse(null, 'Preloved listing deleted successfully');

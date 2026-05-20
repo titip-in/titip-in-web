@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
+use App\Models\Category;
 use App\Models\PrelovedListing;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,15 +19,17 @@ class PrelovedListingFactory extends Factory
      */
     public function definition(): array
     {
+        $dummyVector = '[' . implode(',', array_fill(0, 3072, 0.01)) . ']';
+
         return [
-            'user_id' => UserFactory::new(),
-            'category_id' => null,
-            'title' => $this->faker->sentence(),
+            'user_id' => User::inRandomOrder()->value('id') ?? User::factory(),
+            'category_id' => Category::where('type', 'preloved')->inRandomOrder()->value('id'),
+            'title' => $this->faker->sentence(3),
             'description' => $this->faker->paragraph(),
-            'price' => $this->faker->numberBetween(100000, 50000000),
+            'price' => $this->faker->numberBetween(100000, 5000000),
             'condition' => $this->faker->randomElement(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']),
-            'image_url' => $this->faker->imageUrl(),
             'status' => $this->faker->randomElement(['AVAILABLE', 'SOLD', 'CLOSED']),
+            'embedding' => $dummyVector,
         ];
     }
 }

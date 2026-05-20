@@ -12,7 +12,7 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        $fakeVector = array_fill(0, 768, 0.1);
+        $fakeVector = array_fill(0, 3072, 0.1);
 
         Str::macro('toEmbeddings', function () use ($fakeVector) {
             return $fakeVector;

@@ -28,15 +28,17 @@ class JastipListingApiTest extends TestCase
                         'id',
                         'user_id',
                         'category_id',
+                        'title',
+                        'description',
                         'from_loc',
                         'to_loc',
                         'deadline',
                         'status',
-                        'image_url',
                         'lat',
                         'lng',
                         'user',
-                        'category'
+                        'category',
+                        'images'
                     ]
                 ]
             ]);
@@ -57,11 +59,14 @@ class JastipListingApiTest extends TestCase
                     'id',
                     'user_id',
                     'category_id',
+                    'title',
+                    'description',
                     'from_loc',
                     'to_loc',
                     'deadline',
                     'user',
-                    'category'
+                    'category',
+                    'images'
                 ]
             ])
             ->assertJsonPath('data.id', $listing->id);
@@ -89,14 +94,18 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'category_id' => $category->id,
+                'title' => 'Jastip Oleh-oleh Bandung',
+                'description' => 'Nitip brownies kartika sari',
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'ACTIVE',
-                'image_url' => 'https://example.com/image.jpg',
+                'images' => ['https://example.com/image.jpg'],
                 'lat' => -6.1753,
                 'lng' => 106.8249,
             ]);
+
+        if ($response->status() !== 201) $response->dump();
 
         $response->assertStatus(201)
             ->assertJsonStructure([
@@ -105,14 +114,18 @@ class JastipListingApiTest extends TestCase
                 'data' => [
                     'id',
                     'user_id',
+                    'title',
+                    'description',
                     'from_loc',
                     'to_loc',
                     'deadline',
                     'user',
+                    'images'
                 ]
             ]);
 
         $this->assertDatabaseHas('jastip_listings', [
+            'title' => 'Jastip Oleh-oleh Bandung',
             'from_loc' => 'Jakarta',
             'to_loc' => 'Bandung',
             'user_id' => $user->id
@@ -125,6 +138,7 @@ class JastipListingApiTest extends TestCase
 
         $response = $this->postJson('/api/v1/jastip/listings', [
             'category_id' => $category->id,
+            'title' => 'Jastip Oleh-oleh Bandung',
             'from_loc' => 'Jakarta',
             'to_loc' => 'Bandung',
             'deadline' => now()->addHours(12)->toDateTimeString(),
@@ -141,10 +155,12 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'category_id' => $category->id,
+                'title' => 'Jastip Oleh-oleh Bandung',
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'INVALID',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -158,9 +174,11 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'category_id' => $category->id,
+                'title' => 'Jastip Oleh-oleh Bandung',
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'deadline' => 'not-a-date',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
         $response->assertStatus(422);
@@ -173,7 +191,7 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'from_loc' => 'Jakarta',
-                // missing to_loc and deadline
+                // missing title, to_loc, deadline, images
             ]);
 
         $response->assertStatus(422);
@@ -182,14 +200,25 @@ class JastipListingApiTest extends TestCase
     public function test_authenticated_user_can_update_own_listing(): void
     {
         $user = User::factory()->create();
-        $listing = JastipListing::factory()->create(['user_id' => $user->id]);
+        
+        $category = Category::factory()->create(); 
+
+        $listing = JastipListing::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id,
+            'status' => 'ACTIVE',
+            'boosted_at' => now()
+        ]);
 
         $response = $this->actingAs($user)
             ->putJson("/api/v1/jastip/listings/{$listing->id}", [
+                'title' => 'Judul Baru Jastip',
                 'from_loc' => 'Surabaya',
                 'to_loc' => 'Yogyakarta',
                 'status' => 'CLOSED',
             ]);
+
+        if ($response->status() !== 200) $response->dump();
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -200,8 +229,10 @@ class JastipListingApiTest extends TestCase
 
         $this->assertDatabaseHas('jastip_listings', [
             'id' => $listing->id,
+            'title' => 'Judul Baru Jastip',
             'from_loc' => 'Surabaya',
-            'status' => 'CLOSED'
+            'status' => 'CLOSED',
+            'boosted_at' => null
         ]);
     }
 
@@ -292,12 +323,12 @@ class JastipListingApiTest extends TestCase
         $response->assertStatus(400);
     }
 
-    public function test_user_cannot_create_more_than_5_active_listings(): void
+    public function test_user_cannot_create_more_than_tier_limit(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['tier' => 'basic']);
         $category = Category::factory()->create();
 
-        JastipListing::factory()->count(5)->create([
+        JastipListing::factory()->count(3)->create([
             'user_id' => $user->id,
             'status' => 'ACTIVE'
         ]);
@@ -305,13 +336,15 @@ class JastipListingApiTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson('/api/v1/jastip/listings', [
                 'category_id' => $category->id,
+                'title' => 'Jastip Oleh-oleh Bandung',
                 'from_loc' => 'Jakarta',
                 'to_loc' => 'Bandung',
                 'deadline' => now()->addHours(12)->toDateTimeString(),
                 'status' => 'ACTIVE',
+                'images' => ['https://example.com/image.jpg']
             ]);
 
-        $response->assertStatus(400);
+        $response->assertStatus(403);
     }
 
     public function test_cannot_view_other_users_closed_listing(): void

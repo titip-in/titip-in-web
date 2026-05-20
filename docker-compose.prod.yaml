@@ -16,8 +16,11 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     volumes:
       - app_storage:/var/www/html/storage/app/public
+      - /var/www/titip-downloads/android:/var/www/titip-downloads/android:ro
     depends_on:
       db:
         condition: service_healthy
@@ -28,14 +31,11 @@ services:
     image: ghcr.io/titip-in/titip-in-web-app:latest
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_worker
     restart: unless-stopped
-    command: >
-      sh -c "
-        until PGPASSWORD=\"$$DB_PASSWORD\" pg_isready -h \"$$DB_HOST\" -U \"$$DB_USERNAME\" -d \"$$DB_DATABASE\" -q; do sleep 2; done;
-        until redis-cli -h \"$$REDIS_HOST\" -p \"$$REDIS_PORT\" ping 2>/dev/null | grep -q PONG; do sleep 2; done;
-        exec php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --verbose
-      "
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --verbose
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     depends_on:
       db:
         condition: service_healthy
@@ -47,13 +47,11 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_scheduler
     restart: unless-stopped
     command: >
-      sh -c "
-        until PGPASSWORD=\"$$DB_PASSWORD\" pg_isready -h \"$$DB_HOST\" -U \"$$DB_USERNAME\" -d \"$$DB_DATABASE\" -q; do sleep 2; done;
-        until redis-cli -h \"$$REDIS_HOST\" -p \"$$REDIS_PORT\" ping 2>/dev/null | grep -q PONG; do sleep 2; done;
-        while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done
-      "
+      sh -c "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
     env_file:
       - .env
+    environment:
+      - TZ=Asia/Jakarta
     depends_on:
       db:
         condition: service_healthy
@@ -89,8 +87,8 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio
     restart: unless-stopped
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: ${AWS_ACCESS_KEY_ID:-titipin_minio}
       MINIO_ROOT_PASSWORD: ${AWS_SECRET_ACCESS_KEY:-titipin_secret}
@@ -103,16 +101,58 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-titipin}_minio_setup
     depends_on:
       - minio
+    env_file:
+      - .env
     entrypoint: >
       /bin/sh -c "
-      sleep 5;
-      mc alias set myminio http://minio:9000 ${AWS_ACCESS_KEY_ID:-titipin_minio} ${AWS_SECRET_ACCESS_KEY:-titipin_secret};
-      mc mb myminio/${AWS_BUCKET:-titipin-bucket} --ignore-existing;
-      mc anonymous set public myminio/${AWS_BUCKET:-titipin-bucket};
+      echo 'Tunggu MinIO nyala...';
+      sleep 15;
+      mc alias set myminio http://minio:9000 $$AWS_ACCESS_KEY_ID $$AWS_SECRET_ACCESS_KEY;
+      mc mb myminio/$$AWS_BUCKET --ignore-existing;
+      mc anonymous set download myminio/$$AWS_BUCKET;
+      echo 'Setup MinIO Selesai!';
       exit 0;
       "
+
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-titipin}_evolution_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      - AUTHENTICATION_TYPE=apikey
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://${DB_USERNAME}:${DB_PASSWORD}@db:5432/${DB_DATABASE}?schema=evolution
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/1
+    ports:
+      - "8084:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  evolution-manager:
+    image: evoapicloud/evolution-manager:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-titipin}_evolution_manager
+    restart: unless-stopped
+    ports:
+      - "8085:80"
+    depends_on:
+      - evolution-api
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sed -i 's/ must-revalidate//g' /etc/nginx/conf.d/nginx.conf && nginx -g 'daemon off;'"]
 
 volumes:
   pg_data:
   app_storage:
   minio_data:
+  evolution_instances:

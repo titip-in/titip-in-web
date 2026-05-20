@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\JastipListing;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 class JastipListingController extends Controller
 {
@@ -16,11 +18,14 @@ class JastipListingController extends Controller
     public function index()
     {
         $items = JastipListing::with([
-            'user:id,name,wa_number',
-            'category:id,name,icon'    
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name,icon',
+            'images'
         ])
         ->where('status', 'ACTIVE')
-        ->latest()->get();
+        ->orderByRaw('COALESCE(boosted_at, created_at) DESC')
+        ->get();
+        
         return $this->successResponse($items, 'Jastip listing catalog retrieved successfully');
     }
 
@@ -29,37 +34,54 @@ class JastipListingController extends Controller
      */
     public function store(Request $request)
     {
-        $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
-        if ($activeCount >= 5) {
-            return $this->errorResponse('Limit reached. You can only have a maximum of 5 active Jastip listings.', 400);
-        }
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'nullable|exists:categories,id',
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
             'from_loc' => 'required|string|max:255',
             'to_loc' => 'required|string|max:255',
             'deadline' => 'required|date|after:now|before_or_equal:+24 hours',
             'status' => 'nullable|in:ACTIVE,CLOSED',
-            'image_url' => 'nullable|string',
+            'images' => 'required|array|min:1|max:' . $maxImages,
+            'images.*' => 'required|url',
+            'primary_image_url' => 'nullable|url',
             'lat' => 'nullable|numeric',
             'lng' => 'nullable|numeric'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
+
+        $images = $request->input('images', []);
+        $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+        unset($validated['images'], $validated['primary_image_url']);
 
         $validated['user_id'] = $request->user()->id;
 
         try {
-            $textToEmbed = "Jastip dari " . $validated['from_loc'] . " ke " . $validated['to_loc'];
+            $categoryName = Category::find($validated['category_id'])?->name ?? '';
+            $textToEmbed = trim($categoryName . ' - ' . $validated['title'] . ' ' . ($validated['description'] ?? '') . ' - Jastip dari ' . $validated['from_loc'] . ' ke ' . $validated['to_loc']);
+            
             $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
             $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Failed to generate embedding for Jastip: ' . $e->getMessage());
         }
 
         $listing = JastipListing::create($validated);
 
+        foreach ($images as $url) {
+            $listing->images()->create([
+                'image_url' => $url,
+                'is_primary' => $url === $primaryUrl,
+            ]);
+        }
+
         $listing->load([
-            'user:id,name,wa_number',
-            'category:id,name'    
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Jastip listing posted successfully', 201);
@@ -75,17 +97,21 @@ class JastipListingController extends Controller
         }
 
         $listing = JastipListing::with([
-            'user:id,name,wa_number',
-            'category:id,name,icon'
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name,icon',
+            'images'
         ])->find($id);
 
         if (!$listing) {
             return $this->errorResponse('Jastip listing not found', 404);
         }
 
-        if ($listing->status === 'CLOSED' && $listing->user_id !== auth('sanctum')->id()) {
-            return $this->errorResponse('This Jastip listing is closed and cannot be viewed by the public.', 403);
+        if ($listing->status !== 'ACTIVE' && $listing->user_id !== auth('sanctum')->id()) {
+            return $this->errorResponse('This Jastip listing is not active and cannot be viewed by the public.', 403);
         }
+
+        $redisKey = "views:jastip_listing:{$id}";
+        Redis::incr($redisKey);
 
         return $this->successResponse($listing, 'Jastip listing detail retrieved successfully');
     }
@@ -109,47 +135,93 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
-        $isReactivating = $listing->status === 'CLOSED' && $request->input('status') === 'ACTIVE';
+        $isReactivating = $listing->status !== 'ACTIVE' && $request->input('status') === 'ACTIVE';
         if ($isReactivating) {
-            $activeCount = JastipListing::where('user_id', $request->user()->id)->where('status', 'ACTIVE')->count();
-            if ($activeCount >= 5) {
-                return $this->errorResponse('Failed to reactivate. You already have 5 active Jastip listings.', 400);
+            if (!$request->user()->canAddItem('jastip_listing')) {
+                $maxLimit = $request->user()->getMaxItemLimit();
+                $tierName = strtoupper($request->user()->tier->value);
+                return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
             }
             $listing->created_at = now();
+            $listing->boosted_at = null;
+        }
+
+        $isClosing = $listing->status === 'ACTIVE' && $request->input('status') !== 'ACTIVE';
+        if ($isClosing) {
+            $listing->boosted_at = null;
         }
 
         $baseTime = $isReactivating ? now() : $listing->created_at;
         $maxDeadline = $baseTime->copy()->addHours(24)->toDateTimeString();
+        
+        $maxImages = ($request->user()->tier === \App\Enums\UserTier::PRO) ? 6 : 3;
 
         $validated = $request->validate([
             'category_id' => 'sometimes|nullable|exists:categories,id',
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'sometimes|nullable|string',
             'from_loc' => 'sometimes|required|string|max:255',
             'to_loc' => 'sometimes|required|string|max:255',
             'deadline' => 'sometimes|required|date|after:now|before_or_equal:' . $maxDeadline,
             'status' => 'sometimes|nullable|in:ACTIVE,CLOSED',
-            'image_url' => 'sometimes|nullable|string',
+            'images' => 'sometimes|required|array|min:1|max:' . $maxImages,
+            'images.*' => 'required|url',
+            'primary_image_url' => 'sometimes|nullable|url',
             'lat' => 'sometimes|nullable|numeric',
             'lng' => 'sometimes|nullable|numeric'
+        ], [
+            'images.max' => "Your " . strtoupper($request->user()->tier->value) . " tier only allows a maximum of {$maxImages} images."
         ]);
 
-        if (isset($validated['from_loc']) || isset($validated['to_loc'])) {
+        if (isset($validated['from_loc']) || isset($validated['to_loc']) || isset($validated['category_id']) || isset($validated['title']) || isset($validated['description'])) {
             try {
+                $newTitle = $validated['title'] ?? $listing->title;
+                $newDesc = $validated['description'] ?? $listing->description;
                 $newFromLoc = $validated['from_loc'] ?? $listing->from_loc;
                 $newToLoc = $validated['to_loc'] ?? $listing->to_loc;
+                $newCatId = $validated['category_id'] ?? $listing->category_id;
                 
-                $textToEmbed = "Jastip dari " . $newFromLoc . " ke " . $newToLoc;
+                $categoryName = Category::find($newCatId)?->name ?? '';
+                $textToEmbed = trim($categoryName . ' - ' . $newTitle . ' ' . $newDesc . ' - Jastip dari ' . $newFromLoc . ' ke ' . $newToLoc);
+                
                 $embeddingArray = Str::of($textToEmbed)->toEmbeddings();
                 $validated['embedding'] = '[' . implode(',', $embeddingArray) . ']';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Failed to update embedding for Jastip: ' . $e->getMessage());
             }
+        }
+
+        if ($request->has('images')) {
+            $images = $request->input('images');
+            $primaryUrl = $request->input('primary_image_url', $images[0] ?? null);
+            unset($validated['images'], $validated['primary_image_url']);
+
+            $listing->images()->delete(); 
+            foreach ($images as $url) {
+                $listing->images()->create([
+                    'image_url' => $url,
+                    'is_primary' => $url === $primaryUrl,
+                ]);
+            }
+        }
+
+        if ($request->has('primary_image_url') && !$request->has('images')) {
+            $newPrimaryUrl = $request->input('primary_image_url');
+            
+            if ($listing->images()->where('image_url', $newPrimaryUrl)->exists()) {
+                $listing->images()->update(['is_primary' => false]); 
+                $listing->images()->where('image_url', $newPrimaryUrl)->update(['is_primary' => true]);
+            }
+
+            unset($validated['primary_image_url']);
         }
 
         $listing->update($validated);
 
         $listing->load([
-            'user:id,name,wa_number',
-            'category:id,name'
+            'user:id,name,wa_number,avatar_url,status',
+            'category:id,name',
+            'images'
         ]);
 
         return $this->successResponse($listing, 'Jastip listing updated successfully');
@@ -174,6 +246,7 @@ class JastipListingController extends Controller
             return $this->errorResponse('Not authorized to modify this item', 403);
         }
 
+        $listing->images()->delete();
         $listing->delete();
 
         return $this->successResponse(null, 'Jastip listing deleted successfully');

@@ -12,9 +12,20 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $categories = Category::orderBy('name', 'asc')->get();
+        $request->validate([
+            'type' => 'nullable|in:jastip,preloved'
+        ]);
+
+        $query = Category::orderBy('name', 'asc');
+
+        if ($request->has('type')) {
+            $query->where('type', $request->input('type'));
+        }
+
+        $categories = $query->get();
+
         return $this->successResponse($categories, 'Category list retrieved successfully');
     }
 
@@ -28,6 +39,8 @@ class CategoryController extends Controller
             'icon' => 'nullable|string',
             'type' => 'required|in:jastip,preloved',
         ]);
+
+        $validated['slug'] = Str::slug($validated['name']);
 
         $category = Category::create($validated);
 

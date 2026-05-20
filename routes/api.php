@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\UserActivityController;
 use App\Http\Controllers\Api\DownloadController;
 use App\Http\Controllers\Api\Admin\AdminAuthController;
 use App\Http\Controllers\Api\Admin\AdminManagementController;
+use \App\Http\Controllers\Api\BoostController;
 
 Route::prefix('v1')->group(function () {
 
@@ -86,6 +87,11 @@ Route::prefix('v1')->group(function () {
 
                 Route::match(['put', 'patch'], '/jastip/requests/{id}', [JastipRequestController::class, 'update']);
                 Route::delete('/jastip/requests/{id}', [JastipRequestController::class, 'destroy']);
+
+                Route::post('/preloved/listings/{id}/boost', [BoostController::class, 'boostPrelovedListing']);
+                Route::post('/preloved/requests/{id}/boost', [BoostController::class, 'boostPrelovedRequest']);
+                Route::post('/jastip/listings/{id}/boost', [BoostController::class, 'boostJastipListing']);
+                Route::post('/jastip/requests/{id}/boost', [BoostController::class, 'boostJastipRequest']);
             });
 
             Route::get('/me/jastip/listings', [UserActivityController::class, 'myJastipListings']);
@@ -107,6 +113,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/users', [AdminManagementController::class, 'getUsers']);
             Route::patch('/users/{id}/tier', [AdminManagementController::class, 'updateUserTier']);
             Route::post('/users/{id}/ban', [AdminManagementController::class, 'toggleBanUser']);
+
+            Route::get('/items/{type}', [AdminManagementController::class, 'getItems']);
             Route::delete('/items/{type}/{id}', [AdminManagementController::class, 'forceDeleteItem']);
         });
     });

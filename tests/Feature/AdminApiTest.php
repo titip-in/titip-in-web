@@ -152,7 +152,13 @@ class AdminApiTest extends TestCase
         $admin = Admin::first();
         $token = $admin->createToken('admin_token')->plainTextToken;
         
-        $listing = JastipListing::factory()->create();
+        $user = User::factory()->create();
+        $category = \App\Models\Category::factory()->create();
+        
+        $listing = JastipListing::factory()->create([
+            'user_id' => $user->id,
+            'category_id' => $category->id
+        ]);
 
         $response = $this->withHeader('Authorization', "Bearer $token")
                          ->getJson("/api/v1/admin/items/jastip_listing/{$listing->id}");

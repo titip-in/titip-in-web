@@ -11,3 +11,5 @@ Artisan::command('inspire', function () {
 Schedule::command('titipin:close-expired')->everyMinute();
 
 Schedule::command('titipin:downgrade-expired-tiers')->daily();
+
+Schedule::command('analytics:sync')->hourly();

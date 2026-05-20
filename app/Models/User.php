@@ -55,12 +55,15 @@ class User extends Authenticatable
         return $this->hasMany(PrelovedRequest::class);
     }
 
-    public function totalActiveItems(): int
+    public function getActiveItemCount(string $type): int
     {
-        return $this->jastipListings()->where('status', 'ACTIVE')->count() +
-               $this->jastipRequests()->where('status', 'OPEN')->count() +
-               $this->prelovedListings()->where('status', 'AVAILABLE')->count() +
-               $this->prelovedRequests()->where('status', 'OPEN')->count();
+        return match($type) {
+            'jastip_listing' => $this->jastipListings()->where('status', 'ACTIVE')->count(),
+            'jastip_request' => $this->jastipRequests()->where('status', 'OPEN')->count(),
+            'preloved_listing' => $this->prelovedListings()->where('status', 'AVAILABLE')->count(),
+            'preloved_request' => $this->prelovedRequests()->where('status', 'OPEN')->count(),
+            default => 0,
+        };
     }
 
     public function getMaxItemLimit(): int
@@ -72,8 +75,8 @@ class User extends Authenticatable
         };
     }
 
-    public function canAddItem(): bool
+    public function canAddItem(string $type): bool
     {
-        return $this->totalActiveItems() < $this->getMaxItemLimit();
+        return $this->getActiveItemCount($type) < $this->getMaxItemLimit();
     }
 }

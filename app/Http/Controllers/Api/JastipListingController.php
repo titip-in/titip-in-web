@@ -133,7 +133,7 @@ class JastipListingController extends Controller
 
         $isReactivating = $listing->status !== 'ACTIVE' && $request->input('status') === 'ACTIVE';
         if ($isReactivating) {
-            if (!$request->user()->canAddItem()) {
+            if (!$request->user()->canAddItem('jastip_listing')) {
                 $maxLimit = $request->user()->getMaxItemLimit();
                 $tierName = strtoupper($request->user()->tier->value);
                 return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);

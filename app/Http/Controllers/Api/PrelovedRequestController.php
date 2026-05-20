@@ -108,7 +108,7 @@ class PrelovedRequestController extends Controller
 
         $isReactivating = $reqItem->status !== 'OPEN' && $request->input('status') === 'OPEN';
         if ($isReactivating) {
-            if (!$request->user()->canAddItem()) {
+            if (!$request->user()->canAddItem('preloved_request')) {
                 $maxLimit = $request->user()->getMaxItemLimit();
                 $tierName = strtoupper($request->user()->tier->value);
                 return $this->errorResponse("Failed to reactivate. Your {$tierName} tier has reached the maximum limit of {$maxLimit} active items.", 400);
